@@ -1,0 +1,7 @@
+{
+  "name": "songwars-mobile-temp",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "vue-vite"
+}
