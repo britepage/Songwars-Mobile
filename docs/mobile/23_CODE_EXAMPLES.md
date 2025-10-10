@@ -329,7 +329,7 @@ export const useSongStore = defineStore('song', () => {
     error.value = null
     
     try {
-      const { error: restoreError } = await supabase.rpc('restore_song_from_trash', {
+      const { error: restoreError } = await supabase.rpc('restore_song', {
         p_song_id: songId,
       })
       

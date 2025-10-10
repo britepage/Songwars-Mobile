@@ -31,15 +31,22 @@ A native iOS and Android mobile application with:
 
 ## 📚 Documentation Structure
 
+### 0. Quick Reference (Start Here!)
+- **[COMPLETE_STYLE_GUIDE.md](COMPLETE_STYLE_GUIDE.md)** - 🎨 **Exact colors, spacing, animations** - Copy-paste ready CSS
+- **[SOCIAL_LINKS_IMPLEMENTATION.md](SOCIAL_LINKS_IMPLEMENTATION.md)** - 🔗 **Social links system** - JSONB implementation guide
+- **[IMPLEMENTATION_CHECKLIST.md](IMPLEMENTATION_CHECKLIST.md)** - ✅ **43-step checklist** - Sequential action items
+- **[PARITY_GATE.md](PARITY_GATE.md)** - 🎯 **Final verification** - Ensure mobile = web (no extra features)
+
 ### 1. Setup & Configuration
 - **[01_INITIAL_SETUP.md](01_INITIAL_SETUP.md)** - Project initialization and Ionic setup
 - **[02_PROJECT_STRUCTURE.md](02_PROJECT_STRUCTURE.md)** - Mobile app file structure and organization
+- **[03_SUPABASE_BRANCHING.md](03_SUPABASE_BRANCHING.md)** - Supabase branch setup for mobile development
 - **[03_CAPACITOR_CONFIGURATION.md](03_CAPACITOR_CONFIGURATION.md)** - Native platform configuration
 
 ### 2. Core Conversion Guides
 - **[04_ROUTING_NAVIGATION.md](04_ROUTING_NAVIGATION.md)** - Converting Vue Router to Ionic Navigation
 - **[05_COMPONENTS_CONVERSION.md](05_COMPONENTS_CONVERSION.md)** - Converting all 21 components to Ionic components
-- **[06_PAGES_CONVERSION.md](06_PAGES_CONVERSION.md)** - Converting all 12 pages with mobile UI patterns
+- **[06_PAGES_CONVERSION.md](06_PAGES_CONVERSION.md)** - Converting all 12 pages with mobile UI patterns (strict parity)
 - **[07_STATE_MANAGEMENT.md](07_STATE_MANAGEMENT.md)** - Adapting Pinia stores for mobile
 - **[08_COMPOSABLES_UTILITIES.md](08_COMPOSABLES_UTILITIES.md)** - Converting all 10 composables and 5 utilities
 
@@ -55,7 +62,7 @@ A native iOS and Android mobile application with:
 
 ### 5. UI/UX & Styling
 - **[15_IONIC_UI_COMPONENTS.md](15_IONIC_UI_COMPONENTS.md)** - Ionic UI component library
-- **[16_STYLING_THEMING.md](16_STYLING_THEMING.md)** - Adapting Tailwind to Ionic styling
+- **[16_STYLING_THEMING.md](16_STYLING_THEMING.md)** - **Exact web app styles** - Colors, buttons, animations
 - **[17_MOBILE_UX_PATTERNS.md](17_MOBILE_UX_PATTERNS.md)** - Mobile-specific user experience
 
 ### 6. Testing & Deployment
@@ -72,13 +79,18 @@ A native iOS and Android mobile application with:
 
 For developers ready to begin conversion:
 
-1. **Start with Setup** → Read `01_INITIAL_SETUP.md` to initialize your Ionic project
-2. **Understand Structure** → Review `02_PROJECT_STRUCTURE.md` to organize your files
-3. **Configure Platforms** → Follow `03_CAPACITOR_CONFIGURATION.md` for iOS/Android setup
-4. **Convert Core Features** → Work through components, pages, and state management guides
-5. **Integrate Backend** → Adapt Supabase integration for mobile
-6. **Add Native Features** → Implement camera, notifications, and native capabilities
-7. **Test & Deploy** → Follow platform-specific deployment guides
+1. **Review Style Guide First** → Read `COMPLETE_STYLE_GUIDE.md` for exact colors, spacing, animations
+2. **Check Implementation Checklist** → Follow `IMPLEMENTATION_CHECKLIST.md` for 43 sequential steps
+3. **Verify Parity Requirements** → Review `PARITY_GATE.md` to understand strict parity rules
+4. **Start with Setup** → Read `01_INITIAL_SETUP.md` to initialize your Ionic project
+5. **Understand Structure** → Review `02_PROJECT_STRUCTURE.md` to organize your files
+6. **Configure Platforms** → Follow `03_CAPACITOR_CONFIGURATION.md` for iOS/Android setup
+7. **Convert Core Features** → Work through components, pages, and state management guides
+8. **Integrate Backend** → Adapt Supabase integration for mobile
+9. **Add Native Features** → Implement camera, notifications, and native capabilities
+10. **Test & Deploy** → Follow platform-specific deployment guides
+
+**Critical**: Use `COMPLETE_STYLE_GUIDE.md` and `SOCIAL_LINKS_IMPLEMENTATION.md` as copy-paste references for exact parity.
 
 ## 📊 Conversion Scope
 
@@ -91,7 +103,7 @@ For developers ready to begin conversion:
 - Utility: 3 components
 
 ### Pages to Convert: 12
-- Public: 3 pages (index, preview, sign-in)
+- Public: 3 pages (index, sign-in, registration). Note: `/preview` exists as the trial experience (non-public, not shareable)
 - Authenticated: 6 pages (dashboard, my-songs, leaderboard, account, user profile, admin)
 - Auth Flow: 3 pages (registration, password reset)
 
@@ -176,10 +188,11 @@ For developers ready to begin conversion:
 
 ### For AI Agents
 This documentation is structured for AI-assisted development:
-- **Complete Code Examples**: Full component implementations
-- **Step-by-Step Instructions**: No steps skipped
-- **Copy-Paste Ready**: Code that can be directly implemented
+- **Complete Code Examples**: Full component implementations with exact styling
+- **Step-by-Step Instructions**: 43 numbered steps in `IMPLEMENTATION_CHECKLIST.md`
+- **Copy-Paste Ready**: Exact CSS, colors, and code from `COMPLETE_STYLE_GUIDE.md`
 - **Context Included**: All necessary imports and dependencies
+- **Strict Parity Enforcement**: `PARITY_GATE.md` ensures no assumptions or extra features
 
 ### For Human Developers
 - **Modular Approach**: Convert components incrementally
@@ -291,11 +304,20 @@ This documentation is structured for AI-assisted development:
 
 ## 🎬 Let's Begin!
 
-Start with **[01_INITIAL_SETUP.md](01_INITIAL_SETUP.md)** to begin your mobile app conversion journey.
+**For Copy-Paste Implementation**:
+1. Start with **[COMPLETE_STYLE_GUIDE.md](COMPLETE_STYLE_GUIDE.md)** for exact styling
+2. Review **[IMPLEMENTATION_CHECKLIST.md](IMPLEMENTATION_CHECKLIST.md)** for step-by-step guide
+3. Follow **[01_INITIAL_SETUP.md](01_INITIAL_SETUP.md)** to initialize your project
+
+**Critical Resources**:
+- **Visual Parity**: `COMPLETE_STYLE_GUIDE.md` (exact colors: `#ffd200`, `#8b5cf6`)
+- **Social Links**: `SOCIAL_LINKS_IMPLEMENTATION.md` (profiles.social_links JSONB)
+- **Verification**: `PARITY_GATE.md` (ensure mobile = web)
 
 ---
 
-**Document Version**: 1.0.0  
+**Document Version**: 2.0.0  
 **Last Updated**: January 2025  
-**Compatible With**: SongWars v1.0, Ionic 8.x, Capacitor 6.x, Vue 3.5.x
+**Compatible With**: SongWars v1.0, Ionic 8.x, Capacitor 6.x, Vue 3.5.x  
+**Parity**: Strict visual and functional parity with web app
 

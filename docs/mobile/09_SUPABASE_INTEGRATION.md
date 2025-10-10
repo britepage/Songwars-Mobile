@@ -273,11 +273,11 @@ async function getAvailableGenres() {
 
 // Example: Record battle vote
 async function recordBattleVote(winnerId: string, loserId: string, userId: string) {
-  const { data, error } = await supabase.rpc('record_battle_vote', {
-    p_winner_song_id: winnerId,
-    p_loser_song_id: loserId,
-    p_user_id: userId,
-  })
+  const { data, error } = await supabase.rpc('record_comparison_vote', {
+    chosen_song_id: winnerId,
+    unchosen_song_id: loserId,
+    user_id: userId
+  });
   
   if (error) {
     console.error('Error recording vote:', error)
@@ -289,12 +289,12 @@ async function recordBattleVote(winnerId: string, loserId: string, userId: strin
 
 // Example: Get leaderboard with pagination
 async function getLeaderboard(genre: string, week: number, offset: number = 0) {
-  const { data, error } = await supabase.rpc('get_weekly_leaderboard', {
+  const { data, error } = await supabase.rpc('get_leaderboard_by_genre_and_week', {
     p_genre: genre,
     p_week: week,
-    p_limit: 20,
-    p_offset: offset,
-  })
+    p_limit: 25,
+    p_offset: offset
+  });
   
   if (error) {
     console.error('Error fetching leaderboard:', error)
@@ -311,18 +311,16 @@ All 67 functions are documented in `SUPABASE_DATABASE_FUNCTIONS.md`. Key functio
 
 **Battle System:**
 - `get_random_songs_for_battle(p_genre, p_count)`
-- `record_battle_vote(p_winner_song_id, p_loser_song_id, p_user_id)`
+- `record_comparison_vote(chosen_song_id, unchosen_song_id, user_id)`
 - `get_available_genres()`
 
 **Leaderboard:**
-- `get_weekly_leaderboard(p_genre, p_week, p_limit, p_offset)`
-- `get_hall_of_fame_by_genre(p_genre, p_churn_week, p_limit, p_offset)`
+- `get_leaderboard_by_genre_and_week(p_genre, p_week, p_limit, p_offset)`
+- `get_leaderboard_available_genres()`
 
 **Songs:**
-- `get_user_songs(p_user_id, p_limit, p_offset)`
 - `soft_delete_song(p_song_id)`
-- `restore_song_from_trash(p_song_id)`
-- `hard_delete_song(p_song_id)`
+- `restore_song(p_song_id)`
 
 **Profile:**
 - `update_user_profile(p_user_id, p_username, p_display_name, p_bio, p_avatar_url)`
@@ -819,10 +817,12 @@ async function getLeaderboard(genre: string, week: number) {
   }
   
   // Fetch from Supabase
-  const { data, error } = await supabase.rpc('get_weekly_leaderboard', {
+  const { data, error } = await supabase.rpc('get_leaderboard_by_genre_and_week', {
     p_genre: genre,
     p_week: week,
-  })
+    p_limit: 25,
+    p_offset: offset
+  });
   
   if (error) throw error
   

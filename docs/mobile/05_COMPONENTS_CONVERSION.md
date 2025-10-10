@@ -725,10 +725,10 @@ const voteSong = async (choice: 'A' | 'B') => {
   const loserId = choice === 'A' ? songB.value.id : songA.value.id
   
   try {
-    const { error } = await supabase.rpc('record_battle_vote', {
-      p_winner_song_id: winnerId,
-      p_loser_song_id: loserId,
-      p_user_id: authStore.user?.id,
+    const { error } = await supabase.rpc('record_comparison_vote', {
+      chosen_song_id: winnerId,
+      unchosen_song_id: loserId,
+      user_id: authStore.user?.id,
     })
     
     if (error) throw error
@@ -1034,6 +1034,8 @@ const newLinkUrl = ref('')
 const urlError = ref('')
 const saving = ref(false)
 
+// Social links stored as JSONB array in profiles.social_links column
+// See SOCIAL_LINKS_IMPLEMENTATION.md for full details
 const socialLinks = computed(() => profileStore.profile?.social_links || [])
 
 const getPlatformIcon = (platform: string) => {
@@ -1090,6 +1092,7 @@ const addLink = async () => {
       url: newLinkUrl.value,
     }
 
+    // Update the JSONB array in profiles table
     const updatedLinks = [...socialLinks.value, newLink]
     await profileStore.updateProfile({
       social_links: updatedLinks,
@@ -1107,6 +1110,7 @@ const addLink = async () => {
 
 const removeLink = async (index: number) => {
   try {
+    // Update the JSONB array in profiles table
     const updatedLinks = socialLinks.value.filter((_, i) => i !== index)
     await profileStore.updateProfile({
       social_links: updatedLinks,
@@ -1115,6 +1119,10 @@ const removeLink = async (index: number) => {
     console.error('Error removing link:', error)
   }
 }
+
+// Note: Social links are stored in profiles.social_links as a JSONB array
+// There is NO separate user_social_links table
+// For complete implementation details, see SOCIAL_LINKS_IMPLEMENTATION.md
 </script>
 
 <style scoped>

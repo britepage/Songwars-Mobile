@@ -438,7 +438,7 @@ bundletool install-apks --apks=app-release.apks
    ```
    User account creation and authentication
    Profile customization
-   Music upload and sharing
+   Music upload and playback
    ```
 4. Data security:
    - ✅ Data encrypted in transit

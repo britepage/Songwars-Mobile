@@ -1,2 +1,368 @@
-/* For information on how to create your own theme, please see:
-http://ionicframework.com/docs/theming/ */
+/* Theme CSS Variables */
+:root {
+  /* Light theme colors (default) */
+  --bg-primary: #ffffff;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f8fafc;
+  --text-primary: #000000;
+  --text-secondary: #1f2937;
+  --text-muted: #6b7280;
+  --border-color: #d1d5db;
+  --accent-color: #8b5cf6;
+  --accent-hover: #7c3aed;
+  --sidebar-bg: #ffffff;
+  --card-bg: #ffffff;
+  --card-border: #d1d5db;
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+:root[data-theme="dark"] {
+  /* Dark theme colors */
+  --bg-primary: #000000;
+  --bg-secondary: #0f0f0f;
+  --bg-tertiary: #1a1a1a;
+  --text-primary: #ffffff;
+  --text-secondary: #e5e7eb;
+  --text-muted: #9ca3af;
+  --border-color: #374151;
+  --accent-color: #8b5cf6;
+  --accent-hover: #7c3aed;
+  --sidebar-bg: #000000;
+  --card-bg: #1a1a1a;
+  --card-border: #374151;
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+}
+
+/* Ionic Color Variables */
+:root {
+  /* Brand Colors */
+  --ion-color-primary: #ffd200;
+  --ion-color-primary-rgb: 255, 210, 0;
+  --ion-color-primary-contrast: #000000;
+  --ion-color-primary-contrast-rgb: 0, 0, 0;
+  --ion-color-primary-shade: #e0b900;
+  --ion-color-primary-tint: #ffd71a;
+
+  --ion-color-secondary: #8b5cf6;
+  --ion-color-secondary-rgb: 139, 92, 246;
+  --ion-color-secondary-contrast: #ffffff;
+  --ion-color-secondary-contrast-rgb: 255, 255, 255;
+  --ion-color-secondary-shade: #7a51d8;
+  --ion-color-secondary-tint: #9770f7;
+
+  /* Background Colors */
+  --ion-background-color: var(--bg-primary);
+  --ion-text-color: var(--text-primary);
+  --ion-card-background: var(--card-bg);
+  --ion-item-background: var(--card-bg);
+  
+  /* Border Colors */
+  --ion-border-color: var(--border-color);
+}
+
+[data-theme="dark"] {
+  --ion-background-color: #000000;
+  --ion-text-color: #ffffff;
+  --ion-card-background: #1a1a1a;
+  --ion-item-background: #1a1a1a;
+  --ion-border-color: #374151;
+}
+
+/* Theme-aware text colors */
+.theme-text-primary {
+  color: var(--text-primary);
+}
+
+.theme-text-secondary {
+  color: var(--text-secondary);
+}
+
+.theme-text-muted {
+  color: var(--text-muted);
+}
+
+/* Theme-aware backgrounds */
+.theme-bg-primary {
+  background-color: var(--bg-primary);
+}
+
+.theme-bg-secondary {
+  background-color: var(--bg-secondary);
+}
+
+.theme-bg-card {
+  background-color: var(--card-bg);
+}
+
+/* Card styling */
+.theme-card {
+  background-color: var(--card-bg);
+  border-color: var(--card-border);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Sub-cards (lighter/darker variations) */
+.theme-bg-subcard {
+  background-color: var(--card-bg);
+}
+[data-theme="light"] .theme-bg-subcard {
+  background-color: #f3f4f6 !important; /* gray-100 */
+}
+[data-theme="dark"] .theme-bg-subcard {
+  background-color: #374151 !important; /* gray-700 */
+}
+
+.theme-border-subcard {
+  border-color: var(--card-border);
+}
+[data-theme="light"] .theme-border-subcard {
+  border-color: #e5e7eb !important; /* gray-200 */
+}
+[data-theme="dark"] .theme-border-subcard {
+  border-color: #4b5563 !important; /* gray-600 */
+}
+
+/* Input styling */
+.theme-input {
+  background-color: var(--card-bg);
+  border-color: var(--card-border);
+  color: var(--text-primary);
+}
+
+.theme-input::placeholder {
+  color: var(--text-muted);
+}
+
+[data-theme="dark"] .theme-input {
+  background-color: #374151 !important; /* gray-700 */
+  border-color: #4b5563 !important; /* gray-600 */
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .theme-input::placeholder {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+/* Mobile Header */
+.theme-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  background-color: rgba(255, 255, 255, 0.95);
+  border-bottom: 1px solid #e5e7eb; /* gray-200 */
+}
+
+/* Keep header white in both themes */
+[data-theme="dark"] .theme-header {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: #e5e7eb !important;
+}
+
+/* Footer styling */
+footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background-color: #ffffff;
+  border-top: 1px solid #e5e7eb; /* gray-200 */
+}
+
+/* Nav buttons */
+.nav-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  transition: color 0.2s;
+  background-color: transparent;
+}
+
+.nav-button.active {
+  color: #ffd200;
+}
+
+.nav-button:not(.active) {
+  color: #4b5563; /* gray-600 */
+}
+
+.nav-button:not(.active):hover {
+  color: #1f2937; /* gray-800 */
+}
+
+/* Add Song button (center) */
+.add-song-button {
+  width: 3rem;
+  height: 3rem;
+  background-color: #ffd200;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  border: 2px solid #000000;
+  transform: scale(1);
+  transition: transform 0.2s;
+}
+
+.add-song-button.active {
+  transform: scale(1.1);
+}
+
+.add-song-button:hover {
+  transform: scale(1.1);
+}
+
+/* Social card styling */
+.social-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  transition: all 0.3s ease;
+}
+
+[data-theme="light"] .social-card {
+  background-color: #ffffff !important;
+  border-color: #e5e7eb !important; /* gray-200 */
+}
+
+[data-theme="dark"] .social-card {
+  background-color: #1f2937 !important; /* gray-800 */
+  border-color: #4b5563 !important; /* gray-600 */
+}
+
+[data-theme="dark"] .social-card:hover {
+  background-color: #374151 !important; /* gray-700 */
+}
+
+/* Glassmorphism Effects */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Modal backdrop */
+.modal-backdrop {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Focus States */
+button:focus,
+select:focus,
+audio:focus {
+  outline: 2px solid #8b5cf6;
+  outline-offset: 2px;
+}
+
+/* Screen Reader Only Content */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* Page Transitions */
+.page-enter-active,
+.page-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+/* Mobile Touch Targets */
+@media (max-width: 768px) {
+  button, .clickable {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .safe-area-bottom {
+    height: env(safe-area-inset-bottom, 0.5rem);
+  }
+  
+  .safe-area-top {
+    height: env(safe-area-inset-top, 0);
+  }
+}
+
+/* Common Padding Values */
+.section-header {
+  padding: 1rem 1.5rem; /* 16px 24px */
+}
+
+.card-content {
+  padding: 1.5rem; /* 24px */
+}
+
+.page-content-mobile {
+  padding: 1rem; /* 16px on mobile */
+}
+
+.page-content-desktop {
+  padding: 1.5rem 2rem; /* 24px 32px on desktop */
+}
+
+/* Typography */
+.title-large {
+  font-size: 3.75rem; /* 60px - battle complete */
+  font-weight: 700;
+  color: #ffd200;
+}
+
+.title-medium {
+  font-size: 1.875rem; /* 30px - section headers */
+  font-weight: 700;
+}
+
+.nav-label {
+  font-size: 0.75rem; /* 12px - tab labels */
+  font-weight: 500;
+}
+
+/* Font Family */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
