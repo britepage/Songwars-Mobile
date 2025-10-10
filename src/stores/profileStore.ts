@@ -62,14 +62,51 @@ export const useProfileStore = defineStore('profile', () => {
 
       const { data, error: fetchError } = await supabaseService.getProfile(userId)
       
+      // If profile exists, load it
+      if (data) {
+        profile.value = data
+        console.log('[profileStore] Profile loaded:', data.id)
+        return { success: true, data }
+      }
+      
+      // If no profile exists AND no error, create one automatically
+      if (!data && !fetchError) {
+        console.log('[profileStore] No profile found, creating minimal default profile')
+        
+        const currentUser = await supabaseService.getCurrentUser()
+        if (!currentUser) {
+          throw new Error('No authenticated user')
+        }
+        
+        const minimalProfile = {
+          id: currentUser.id,
+          display_name: 'New User',
+          role: 'fan',
+          is_public: true
+        }
+        
+        const { data: createdProfile, error: createError } = await supabaseService.updateProfile(minimalProfile)
+        
+        if (createError) {
+          throw createError
+        }
+        
+        if (createdProfile) {
+          profile.value = createdProfile
+          console.log('[profileStore] Profile created:', createdProfile.id)
+          return { success: true, data: createdProfile }
+        }
+      }
+      
+      // If there was an error, throw it
       if (fetchError) {
         throw fetchError
       }
 
-      profile.value = data
-      return { success: true, data }
+      return { success: true, data: null }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch profile'
+      console.error('[profileStore] Error:', error.value)
       return { success: false, error: error.value }
     } finally {
       isLoading.value = false

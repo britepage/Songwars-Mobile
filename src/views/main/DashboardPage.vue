@@ -10,14 +10,16 @@
     </ion-header>
     
     <ion-content :fullscreen="true">
-      <!-- Loading State -->
-      <div v-if="isLoading" class="loading-container">
-        <ion-spinner name="crescent" color="primary" />
-        <p>Loading battle...</p>
-      </div>
-      
-      <!-- Battle Interface -->
-      <div v-else-if="currentBattle" class="battle-container">
+      <!-- Battle Section -->
+      <div v-if="activeSection === 'battle'">
+        <!-- Loading State -->
+        <div v-if="isLoading" class="loading-container">
+          <ion-spinner name="crescent" color="primary" />
+          <p>Loading battle...</p>
+        </div>
+        
+        <!-- Battle Interface -->
+        <div v-else-if="currentBattle" class="battle-container">
         <!-- Tape Players for both songs -->
         <div class="battle-songs">
           <div class="song-section">
@@ -83,23 +85,39 @@
         </ion-button>
       </div>
       
-      <!-- Recent Battles Section -->
-      <div v-if="recentBattles.length > 0" class="recent-battles">
-        <h3 class="section-title">Recent Battles</h3>
-        <ion-card 
-          v-for="battle in recentBattles" 
-          :key="battle.id"
-          class="battle-history-card"
-        >
-          <ion-card-content>
-            <div class="battle-info">
-              <p class="battle-matchup">
-                Battle #{{ battle.id.substring(0, 8) }}
-              </p>
-              <p class="battle-date">{{ formatDate(battle.created_at) }}</p>
-            </div>
-          </ion-card-content>
-        </ion-card>
+        <!-- Recent Battles Section -->
+        <div v-if="recentBattles.length > 0" class="recent-battles">
+          <h3 class="section-title">Recent Battles</h3>
+          <ion-card 
+            v-for="battle in recentBattles" 
+            :key="battle.id"
+            class="battle-history-card"
+          >
+            <ion-card-content>
+              <div class="battle-info">
+                <p class="battle-matchup">
+                  Battle #{{ battle.id.substring(0, 8) }}
+                </p>
+                <p class="battle-date">{{ formatDate(battle.created_at) }}</p>
+              </div>
+            </ion-card-content>
+          </ion-card>
+        </div>
+      </div>
+
+      <!-- Upload Section -->
+      <div v-if="activeSection === 'upload'" class="upload-container">
+        <div class="upload-placeholder">
+          <ion-icon :icon="add" class="upload-icon" />
+          <h2>Upload Section</h2>
+          <p>Upload functionality will be implemented here</p>
+          <ion-button 
+            @click="activeSection = 'battle'"
+            fill="outline"
+          >
+            Back to Battle
+          </ion-button>
+        </div>
       </div>
     </ion-content>
   </ion-page>
@@ -120,20 +138,26 @@ import {
   IonCardContent
 } from '@ionic/vue'
 import { musicalNotes, add, playSkipForward } from 'ionicons/icons'
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useBattleStore } from '@/stores/songComparisonStore'
 import { useSongStore } from '@/stores/songStore'
+import { useProfileStore } from '@/stores/profileStore'
+import { useAuthStore } from '@/stores/authStore'
 import TapePlayer from '@/components/core/TapePlayer.vue'
 import ThemeToggle from '@/components/core/ThemeToggle.vue'
 
 const router = useRouter()
+const route = useRoute()
 const battleStore = useBattleStore()
 const songStore = useSongStore()
+const profileStore = useProfileStore()
+const authStore = useAuthStore()
 
 const isLoading = ref(false)
 const hasVoted = ref(false)
 const playingSongId = ref<string | null>(null)
+const activeSection = ref('battle')
 
 const currentBattle = computed(() => battleStore.currentBattle)
 const recentBattles = computed(() => battleStore.battleHistory.slice(0, 5))
@@ -147,6 +171,15 @@ const songB = computed(() => {
   if (!currentBattle.value) return null
   return songStore.songs.find(s => s.id === currentBattle.value?.song_b_id)
 })
+
+// Watch for URL query parameter changes
+watch(() => route.query.section, (newSection) => {
+  if (newSection === 'upload') {
+    activeSection.value = 'upload'
+  } else {
+    activeSection.value = 'battle'
+  }
+}, { immediate: true })
 
 const loadBattle = async () => {
   isLoading.value = true
@@ -214,7 +247,14 @@ const formatDate = (dateString: string) => {
   })
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // Fetch profile first to ensure it exists
+  if (authStore.user) {
+    console.log('[Dashboard] Fetching profile for user:', authStore.user.id)
+    await profileStore.fetchProfile()
+  }
+  
+  // Then load battle
   loadBattle()
 })
 </script>
@@ -344,5 +384,36 @@ onMounted(() => {
   margin: 0;
   color: var(--text-muted);
   font-size: 0.8rem;
+}
+
+/* Upload Section Styles */
+.upload-container {
+  padding: 2rem;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.upload-placeholder {
+  text-align: center;
+  max-width: 400px;
+}
+
+.upload-icon {
+  font-size: 4rem;
+  color: #ffd200;
+  margin-bottom: 1rem;
+}
+
+.upload-placeholder h2 {
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.upload-placeholder p {
+  color: var(--text-secondary);
+  margin-bottom: 2rem;
 }
 </style>

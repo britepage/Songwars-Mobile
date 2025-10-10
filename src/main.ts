@@ -31,6 +31,9 @@ import '@ionic/vue/css/display.css'
 /* @import '@ionic/vue/css/palettes/dark.class.css'; */
 import '@ionic/vue/css/palettes/dark.system.css'
 
+/* Tailwind CSS */
+import './theme/tailwind.css'
+
 /* Theme variables */
 import './theme/variables.css'
 import './theme/bigbutton.css'

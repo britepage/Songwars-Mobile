@@ -1,86 +1,129 @@
 <template>
-  <ion-tab-bar slot="bottom" v-if="showFooter">
-    <ion-tab-button tab="dashboard" href="/tabs/dashboard">
-      <ion-icon :icon="home" />
-      <ion-label>Battle</ion-label>
-    </ion-tab-button>
+  <footer v-if="isAuthenticated" class="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200">
+    <div class="flex items-center justify-around px-4 py-3">
+      <!-- Battle Icon -->
+      <button
+        @click="goToBattle"
+        class="flex flex-col items-center space-y-1 p-2 transition-colors bg-transparent"
+        :class="{ 'text-[#ffd200]': isBattleActive, 'text-gray-600 hover:text-gray-800': !isBattleActive }"
+      >
+        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M3 13h4v8H3v-8zm6-6h4v14H9V7zm6-4h4v18h-4V3z"/>
+        </svg>
+        <span class="text-xs font-medium" :class="{ 'text-[#ffd200]': isBattleActive, 'text-gray-600': !isBattleActive }">Battle</span>
+      </button>
 
-    <ion-tab-button tab="leaderboard" href="/tabs/leaderboard">
-      <ion-icon :icon="trophy" />
-      <ion-label>Leaderboard</ion-label>
-    </ion-tab-button>
+      <!-- Leaderboard Icon -->
+      <button
+        @click="goToLeaderboard"
+        class="flex flex-col items-center space-y-1 p-2 transition-colors bg-transparent"
+        :class="{ 'text-[#ffd200]': isLeaderboardActive, 'text-gray-600 hover:text-gray-800': !isLeaderboardActive }"
+      >
+        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        </svg>
+        <span class="text-xs font-medium" :class="{ 'text-[#ffd200]': isLeaderboardActive, 'text-gray-600': !isLeaderboardActive }">Leaderboard</span>
+      </button>
 
-    <ion-tab-button tab="my-songs" href="/tabs/my-songs">
-      <ion-icon :icon="musicalNotes" />
-      <ion-label>My Songs</ion-label>
-    </ion-tab-button>
+      <!-- Add Song Button (Centered +) -->
+      <button
+        v-if="profileStore.profile?.role === 'artist'"
+        @click="goToUpload"
+        class="flex flex-col items-center space-y-1 p-2 rounded-lg transition-all transform hover:scale-110"
+        :class="{ 'scale-110': isUploadActive }"
+      >
+        <div class="w-12 h-12 bg-[#ffd200] rounded-full flex items-center justify-center shadow-lg border-2 border-black">
+          <svg class="w-6 h-6 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+        </div>
+        <span class="text-xs font-medium" :class="{ 'text-[#ffd200]': isUploadActive, 'text-gray-600': !isUploadActive }">Add Song</span>
+      </button>
 
-    <ion-tab-button tab="account" href="/tabs/account">
-      <ion-icon :icon="person" />
-      <ion-label>Account</ion-label>
-    </ion-tab-button>
-  </ion-tab-bar>
+      <!-- My Songs Icon -->
+      <button
+        v-if="profileStore.profile?.role === 'artist'"
+        @click="goToMySongs"
+        class="flex flex-col items-center space-y-1 p-2 transition-colors bg-transparent"
+        :class="{ 'text-[#ffd200]': isMySongsActive, 'text-gray-600 hover:text-gray-800': !isMySongsActive }"
+      >
+        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+        </svg>
+        <span class="text-xs font-medium" :class="{ 'text-[#ffd200]': isMySongsActive, 'text-gray-600': !isMySongsActive }">My Songs</span>
+      </button>
+
+      <!-- Profile Icon -->
+      <button
+        @click="goToProfile"
+        class="flex flex-col items-center space-y-1 p-2 transition-colors bg-transparent"
+        :class="{ 'text-[#ffd200]': isProfileActive, 'text-gray-600 hover:text-gray-800': !isProfileActive }"
+      >
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+        <span class="text-xs font-medium" :class="{ 'text-[#ffd200]': isProfileActive, 'text-gray-600': !isProfileActive }">Account</span>
+      </button>
+    </div>
+
+    <!-- Bottom padding for safe area on mobile -->
+    <div class="h-2 md:h-0"></div>
+  </footer>
 </template>
 
-<script setup lang="ts">
-import { computed } from 'vue'
-import { IonTabBar, IonTabButton, IonIcon, IonLabel } from '@ionic/vue'
-import { home, trophy, musicalNotes, person } from 'ionicons/icons'
-import { useRoute } from 'vue-router'
+<script setup>
+import { computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
+import { useProfileStore } from '@/stores/profileStore'
 
+const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const profileStore = useProfileStore()
 
-// Hide footer on certain pages
-const showFooter = computed(() => {
-  const hiddenRoutes = ['/sign-in', '/registration', '/reset-password', '/preview']
-  return !hiddenRoutes.includes(route.path) && authStore.isAuthenticated
+// Fetch profile on mount to ensure footer has role data
+onMounted(async () => {
+  if (authStore.user) {
+    await profileStore.fetchProfile()
+  }
 })
+
+// Computed properties for active states
+const isAuthenticated = computed(() => authStore.user)
+const isBattleActive = computed(() => route.path === '/tabs/dashboard' && !route.query.section)
+const isProfileActive = computed(() => route.path === '/tabs/account')
+const isLeaderboardActive = computed(() => route.path === '/tabs/leaderboard')
+const isMySongsActive = computed(() => route.path.includes('/my-songs'))
+const isUploadActive = computed(() => route.path === '/tabs/dashboard' && route.query.section === 'upload')
+
+// Navigation functions
+const goToBattle = () => {
+  router.push('/tabs/dashboard')
+}
+
+const goToLeaderboard = () => {
+  router.push('/tabs/leaderboard')
+}
+
+const goToUpload = () => {
+  router.push('/tabs/dashboard?section=upload')
+}
+
+const goToMySongs = () => {
+  router.push('/tabs/my-songs')
+}
+
+const goToProfile = () => {
+  router.push('/tabs/account')
+}
 </script>
 
 <style scoped>
-ion-tab-bar {
-  --background: var(--ion-color-step-50);
-  --color: var(--ion-color-medium);
-  --color-selected: var(--ion-color-primary);
-  --border: 1px solid var(--ion-color-step-150);
-}
-
-/* Footer styling from COMPLETE_STYLE_GUIDE.md */
-ion-tab-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 50;
-  background-color: #ffffff;
-  border-top: 1px solid #e5e7eb; /* gray-200 */
-}
-
-/* Nav buttons */
-ion-tab-button {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.5rem;
-  transition: color 0.2s;
-  background-color: transparent;
-  color: #4b5563; /* gray-600 */
-}
-
-ion-tab-button.tab-selected {
-  color: #ffd200;
-}
-
-ion-tab-button:not(.tab-selected):hover {
-  color: #1f2937; /* gray-800 */
-}
-
-/* Keep footer white in both themes */
-[data-theme="dark"] ion-tab-bar {
-  background-color: rgba(255, 255, 255, 0.95) !important;
-  border-color: #e5e7eb !important;
+/* Safe area for mobile devices */
+@media (max-width: 768px) {
+  .h-2 {
+    height: env(safe-area-inset-bottom, 0.5rem);
+  }
 }
 </style>

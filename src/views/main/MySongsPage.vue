@@ -191,11 +191,15 @@ import {
 import { add, musicalNotes, trash, arrowUndo, trashBin } from 'ionicons/icons'
 import { ref, computed, onMounted } from 'vue'
 import { useSongStore } from '@/stores/songStore'
+import { useProfileStore } from '@/stores/profileStore'
+import { useAuthStore } from '@/stores/authStore'
 import SongCard from '@/components/core/SongCard.vue'
 import ThemeToggle from '@/components/core/ThemeToggle.vue'
 import UploadProgress from '@/components/core/UploadProgress.vue'
 
 const songStore = useSongStore()
+const profileStore = useProfileStore()
+const authStore = useAuthStore()
 
 const selectedTab = ref('active')
 const isLoading = ref(false)
@@ -318,7 +322,14 @@ const formatDate = (dateString: string | null) => {
   })
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // Fetch profile first to ensure it exists
+  if (authStore.user) {
+    console.log('[MySongs] Fetching profile for user:', authStore.user.id)
+    await profileStore.fetchProfile()
+  }
+  
+  // Then load songs
   loadSongs()
 })
 </script>
