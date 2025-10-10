@@ -1,6 +1,6 @@
 <template>
   <ion-page>
-    <ion-content :fullscreen="true" class="auth-page-bg">
+    <ion-content :fullscreen="true" class="auth-page-bg ion-no-padding">
       <div class="auth-page-container">
         <ion-card class="auth-card">
           <!-- Large cassette tape logo -->
@@ -21,7 +21,8 @@
           <form @submit.prevent="handleSignIn" class="auth-form">
             <div class="form-field">
               <label for="email" class="field-label">Email address</label>
-              <ion-input
+              <div class="input-shell">
+                <ion-input
                 id="email"
                 v-model="email"
                 type="email"
@@ -29,12 +30,14 @@
                 required
                 autocomplete="email"
                 class="field-input"
-              />
+                />
+              </div>
             </div>
           
             <div class="form-field">
               <label for="password" class="field-label">Password</label>
-              <ion-input
+              <div class="input-shell">
+                <ion-input
                 id="password"
                 v-model="password"
                 type="password"
@@ -42,7 +45,8 @@
                 required
                 autocomplete="current-password"
                 class="field-input"
-              />
+                />
+              </div>
             </div>
           
             <!-- Display error message from authStore -->
@@ -56,10 +60,6 @@
                 :disabled="signingIn"
                 class="bigbutton bigbutton-medium w-full"
               >
-                <svg v-if="signingIn" class="spinner" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
                 {{ signingIn ? 'Signing In...' : 'Sign In' }}
               </button>
             </div>
@@ -78,11 +78,7 @@
                 :disabled="signingInWithGoogle"
                 class="oauth-button"
               >
-                <svg v-if="signingInWithGoogle" class="spinner" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <svg v-else class="w-5 h-5 mr-3" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 mr-3" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -99,11 +95,7 @@
                 :disabled="signingInWithFacebook"
                 class="oauth-button"
               >
-                <svg v-if="signingInWithFacebook" class="spinner" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <svg v-else class="w-5 h-5 mr-3" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 mr-3" viewBox="0 0 24 24">
                   <path fill="#1877F2" d="M22.675 0H1.325C.593 0 0 .593 0 1.326v21.348C0 23.407.593 24 1.325 24H12.82v-9.294H9.692V11.01h3.128V8.414c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.794.143v3.24h-1.918c-1.504 0-1.796.715-1.796 1.763v2.312h3.59l-.467 3.696h-3.123V24h6.127C23.407 24 24 23.407 24 22.674V1.326C24 .593 23.407 0 22.675 0z"/>
                 </svg>
                 {{ signingInWithFacebook ? 'Signing in with Facebook...' : 'Continue with Facebook' }}
@@ -212,13 +204,21 @@ const goToRegistration = () => {
   --background: var(--bg-primary);
 }
 
+/* Remove Ionic default paddings on this page */
+ion-content.auth-page-bg {
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --padding-start: 0;
+  --padding-end: 0;
+}
+
 /* Centered container */
 .auth-page-container {
   min-height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1.5rem;
+  padding: 1rem;
 }
 
 /* Card with rounded corners and shadow */
@@ -230,6 +230,7 @@ const goToRegistration = () => {
   border-radius: 1rem;
   box-shadow: var(--shadow);
   padding: 2rem;
+  margin: 0; /* neutralize Ionic default margins to match web */
 }
 
 /* Logo */
@@ -241,8 +242,8 @@ const goToRegistration = () => {
 }
 
 .logo-swap {
-  width: 65%;
-  max-width: 260px;
+  width: 221px; /* match web image width */
+  max-width: 221px;
 }
 
 .logo-swap img {
@@ -274,8 +275,10 @@ const goToRegistration = () => {
 }
 
 .auth-title {
-  font-size: 1.875rem;
+  font-size: 30px; /* exact per web */
+  line-height: 36px;
   font-weight: bold;
+  font-family: inherit;
   color: var(--text-primary);
   margin: 0 0 0.5rem 0;
 }
@@ -290,12 +293,18 @@ const goToRegistration = () => {
 .auth-form {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem; /* tighter to match web */
 }
 
 .form-field {
   display: flex;
   flex-direction: column;
+}
+
+.input-shell {
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  background: #ffffff;
 }
 
 .field-label {
@@ -307,7 +316,7 @@ const goToRegistration = () => {
 }
 
 .field-input {
-  --background: var(--bg-tertiary);
+  --background: var(--card-bg); /* white like web inputs */
   --color: var(--text-primary);
   --border-color: var(--border-color);
   --border-radius: 0.5rem;
@@ -318,6 +327,19 @@ const goToRegistration = () => {
   min-height: 48px;
   border: 1px solid var(--border-color);
   border-radius: 0.5rem;
+}
+
+/* Ensure IonInput shows visible borders like web inputs */
+.field-input::part(native) {
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  background: #ffffff; /* force white background to match web */
+  padding: 0.875rem 1rem;
+}
+
+.field-input:focus-within::part(native) {
+  outline: 2px solid #ffd200;
+  outline-offset: 0;
 }
 
 .field-input:focus-within {
@@ -349,7 +371,7 @@ const goToRegistration = () => {
   position: relative;
   display: flex;
   align-items: center;
-  margin: 1.5rem 0;
+  margin: 1rem 0;
 }
 
 .divider-line {
@@ -379,7 +401,7 @@ const goToRegistration = () => {
   font-size: 1rem;
   cursor: pointer;
   transition: all 0.2s;
-  margin-bottom: 0.5rem;
+  margin: 0; /* spacing controlled by wrappers to mirror web app */
 }
 
 .oauth-button:hover {
