@@ -1,15 +1,6 @@
 <template>
   <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>My Songs</ion-title>
-        <ion-buttons slot="end">
-          <ThemeToggle />
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
-    
-    <ion-content :fullscreen="true">
+    <ion-content :fullscreen="true" class="pt-16">
       <!-- Upload Button -->
       <div class="upload-section">
         <ion-button 

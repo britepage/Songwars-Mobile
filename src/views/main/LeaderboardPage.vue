@@ -1,15 +1,6 @@
 <template>
   <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>Leaderboard</ion-title>
-        <ion-buttons slot="end">
-          <ThemeToggle />
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
-    
-    <ion-content :fullscreen="true">
+    <ion-content :fullscreen="true" class="pt-16">
       <!-- Genre Filter -->
       <div class="filter-section">
         <ion-segment v-model="selectedGenre" @ionChange="handleGenreChange" scrollable>

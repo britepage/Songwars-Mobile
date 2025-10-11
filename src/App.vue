@@ -1,11 +1,20 @@
 <template>
   <ion-app>
+    <!-- Global Custom Header -->
+    <HeaderNavigation />
+    
+    <!-- Page Content -->
     <ion-router-outlet />
+    
+    <!-- Global Custom Footer -->
+    <FooterNavigation />
   </ion-app>
 </template>
 
 <script setup lang="ts">
 import { IonApp, IonRouterOutlet } from '@ionic/vue'
+import HeaderNavigation from './components/core/HeaderNavigation.vue'
+import FooterNavigation from './components/core/FooterNavigation.vue'
 import { onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { SplashScreen } from '@capacitor/splash-screen'

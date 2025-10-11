@@ -1,15 +1,6 @@
 <template>
   <ion-page>
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>Battle</ion-title>
-        <ion-buttons slot="end">
-          <ThemeToggle />
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
-    
-    <ion-content :fullscreen="true">
+    <ion-content :fullscreen="true" class="pt-16">
       <!-- Battle Section -->
       <div v-if="activeSection === 'battle'">
         <!-- Loading State -->
