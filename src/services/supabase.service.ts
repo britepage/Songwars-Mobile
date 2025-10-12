@@ -146,6 +146,7 @@ class SupabaseService {
 
   public async updateProfile(updates: {
     display_name?: string
+    username?: string
     avatar_url?: string
     bio?: string
     region?: string
@@ -153,6 +154,9 @@ class SupabaseService {
     musical_preferences?: string
     role?: string
     social_links?: any
+    is_public?: boolean
+    roulette_sound_enabled?: boolean
+    confetti_sound_enabled?: boolean
   }) {
     const user = await this.getCurrentUser()
     if (!user) {

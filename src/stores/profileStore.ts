@@ -115,6 +115,7 @@ export const useProfileStore = defineStore('profile', () => {
 
   const updateProfile = async (updates: {
     display_name?: string
+    username?: string
     avatar_url?: string
     bio?: string
     region?: string
@@ -122,6 +123,9 @@ export const useProfileStore = defineStore('profile', () => {
     musical_preferences?: string
     role?: string
     social_links?: SocialLink[]
+    is_public?: boolean
+    roulette_sound_enabled?: boolean
+    confetti_sound_enabled?: boolean
   }) => {
     try {
       isLoading.value = true
