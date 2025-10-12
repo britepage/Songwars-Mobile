@@ -20,12 +20,17 @@ import { useRouter } from 'vue-router'
 import { SplashScreen } from '@capacitor/splash-screen'
 import { StatusBar, Style } from '@capacitor/status-bar'
 import { useAuthStore } from '@/stores/authStore'
+import { useThemeStore } from '@/stores/themeStore'
 import { AUTH_STORE_REDIRECT_ROUTES } from '@/constants/publicRoutes'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const themeStore = useThemeStore()
 
 onMounted(async () => {
+  // Initialize theme FIRST (before splash screen)
+  await themeStore.initializeTheme()
+  
   // Hide splash screen
   await SplashScreen.hide()
   

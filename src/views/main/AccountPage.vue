@@ -22,20 +22,17 @@
             </button>
           </div>
           
-          <h2 class="text-2xl font-bold theme-text-primary mt-4 mb-1">
+          <h2 class="text-2xl font-bold theme-text-primary mt-4 mb-4">
             {{ form.display_name || 'User' }}
           </h2>
-          <p class="theme-text-secondary mb-4">
-            @{{ form.username || 'username' }}
-          </p>
           
           <!-- Profile Button (if username exists) -->
           <button 
-            v-if="form.username && !isUsernameLocked"
-            @click="router.push(`/user/${form.username}`)"
-            class="px-4 py-2 bg-[#ffd200] text-black font-medium rounded-lg hover:bg-[#ffd200]/90 transition-colors"
+            v-if="profileStore.profile?.username"
+            @click="router.push(`/user/${profileStore.profile.username}`)"
+            class="bigbutton bigbutton-small"
           >
-            View Profile
+            Profile
           </button>
         </div>
 
@@ -310,7 +307,7 @@
             <button 
               @click="saveProfile" 
               :disabled="isSaving"
-              class="w-full px-6 py-4 bg-[#ffd200] text-black font-semibold rounded-lg hover:bg-[#ffd200]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              class="bigbutton bigbutton-medium w-full"
             >
               {{ isSaving ? 'Saving...' : 'Save Profile' }}
             </button>
@@ -346,11 +343,8 @@
 
       <!-- Delete Account Modal -->
       <AccountDeletionModal
-        :is-open="showDeleteModal"
-        :is-deleting="isDeleting"
-        :error="deleteError"
-        @dismiss="showDeleteModal = false"
-        @delete="handleDeleteAccount"
+        :show-modal="showDeleteModal"
+        @close="showDeleteModal = false"
       />
     </ion-content>
   </ion-page>
@@ -375,9 +369,7 @@ const themeStore = useThemeStore()
 
 // Reactive state
 const isSaving = ref(false)
-const isDeleting = ref(false)
 const showDeleteModal = ref(false)
-const deleteError = ref<string | null>(null)
 const isAdmin = ref(false)
 const newLinkUrl = ref('')
 
@@ -467,6 +459,9 @@ const detectPlatform = (url: string): { platform: string; label: string } => {
   if (urlLower.includes('soundcloud.com')) return { platform: 'soundcloud', label: 'SoundCloud' }
   if (urlLower.includes('apple.com') || urlLower.includes('music.apple')) return { platform: 'apple_music', label: 'Apple Music' }
   if (urlLower.includes('bandcamp.com')) return { platform: 'bandcamp', label: 'Bandcamp' }
+  if (urlLower.includes('linkedin.com')) return { platform: 'linkedin', label: 'LinkedIn' }
+  if (urlLower.includes('twitch.tv')) return { platform: 'twitch', label: 'Twitch' }
+  if (urlLower.includes('patreon.com')) return { platform: 'patreon', label: 'Patreon' }
   
   return { platform: 'website', label: 'Website' }
 }
@@ -679,24 +674,7 @@ const handleLogout = async () => {
   }
 }
 
-// Delete account
-const handleDeleteAccount = async () => {
-  try {
-    isDeleting.value = true
-    deleteError.value = null
-    
-    // TODO: Implement account deletion
-    console.log('Delete account requested')
-    
-    // For now, just close modal
-    showDeleteModal.value = false
-  } catch (error) {
-    console.error('Error deleting account:', error)
-    deleteError.value = 'Failed to delete account'
-  } finally {
-    isDeleting.value = false
-  }
-}
+// Delete account - now handled by AccountDeletionModal component
 
 // Load preferences on mount
 const loadPreferences = async () => {

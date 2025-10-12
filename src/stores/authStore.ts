@@ -205,6 +205,35 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
   }
 
+  const deleteUserAccount = async (): Promise<boolean> => {
+    if (!user.value) {
+      throw new Error('No authenticated user found')
+    }
+
+    try {
+      isLoading.value = true
+      error.value = null
+
+      // Call backend RPC function
+      const { error: deleteError } = await supabaseService.getClient().rpc('delete_user_account')
+      if (deleteError) throw deleteError
+
+      // Clear local auth data
+      user.value = null
+      session.value = null
+      
+      // Sign out and redirect
+      await signOut()
+      
+      return true
+    } catch (error) {
+      console.error('Account deletion error:', error)
+      throw error
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   // General OAuth sign in method
   const signInWithOAuth = async (provider: 'google' | 'facebook') => {
     if (provider === 'google') {
@@ -241,6 +270,7 @@ export const useAuthStore = defineStore('auth', () => {
     signInWithGoogle,
     signInWithFacebook,
     updatePassword,
+    deleteUserAccount,
     clearError,
   }
 })
