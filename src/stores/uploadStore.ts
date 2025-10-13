@@ -1,9 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { v4 as uuidv4 } from 'uuid'
 import { supabaseService } from '@/services/supabase.service'
 import { extractMetadataFromFilename, formatFileSize, isValidAudioFile } from '@/utils/titleExtractor'
 import { convertWavToMp3, needsConversion, createMp3File } from '@/utils/audioConverterWebAudio'
 import { MASTER_GENRES } from '@/utils/genres'
+import { useAuthStore } from '@/stores/authStore'
 
 export interface UploadProgress {
   stage: 'decoding' | 'encoding' | 'uploading' | 'complete'
@@ -92,42 +94,55 @@ export const useUploadStore = defineStore('upload', () => {
   })
   
   // Actions
-  const handleFileSelection = async (file: File) => {
+  const handleFileSelection = async (file: File): Promise<{ success: boolean; message: string }> => {
     try {
       clearUploadStatus()
       
       // Validate file
       if (!isValidAudioFile(file)) {
-        throw new Error('Invalid audio file format. Please select MP3, WAV, M4A, AAC, or OGG files.')
+        return { success: false, message: 'Invalid audio file format. Please select MP3, WAV, M4A, AAC, or OGG files.' }
       }
       
       if (file.size > 50 * 1024 * 1024) {
-        throw new Error('File size must be less than 50MB.')
+        return { success: false, message: 'File size must be less than 50MB.' }
       }
       
-      selectedFile.value = file
+      // Generate fingerprint and check for duplicates BEFORE loading file
+      isGeneratingFingerprint.value = true
+      fingerprintGenerated.value = false
+      isDuplicate.value = false
       
-      // Create preview URL
-      if (audioPreviewUrl.value) {
-        URL.revokeObjectURL(audioPreviewUrl.value)
+      try {
+        // Generate fingerprint
+        const arrayBuffer = await file.arrayBuffer()
+        const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer)
+        const hashArray = Array.from(new Uint8Array(hashBuffer))
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+        
+        audioFingerprint.value = hashHex
+        
+        // Check for duplicates
+        await checkForDuplicates(hashHex)
+        
+        if (isDuplicate.value) {
+          fingerprintGenerated.value = false
+          return { success: false, message: uploadError.value || 'This song has already been uploaded. Please select a different file.' }
+        }
+        
+        fingerprintGenerated.value = true
+        return { success: true, message: 'File ready for upload' }
+        
+      } catch (error) {
+        console.error('Fingerprint generation error:', error)
+        fingerprintGenerated.value = false
+        return { success: false, message: 'Failed to process file. Please try again.' }
+      } finally {
+        isGeneratingFingerprint.value = false
       }
-      audioPreviewUrl.value = URL.createObjectURL(file)
-      
-      // Extract metadata from filename
-      const metadata = extractMetadataFromFilename(file.name)
-      if (metadata.artist) {
-        artistName.value = metadata.artist
-      }
-      if (metadata.title) {
-        songTitle.value = metadata.title
-      }
-      
-      // Generate fingerprint and check for duplicates
-      await generateAudioFingerprint(file)
       
     } catch (error) {
       console.error('File selection error:', error)
-      uploadError.value = error instanceof Error ? error.message : 'Failed to process file'
+      return { success: false, message: error instanceof Error ? error.message : 'Failed to process file' }
     }
   }
   
@@ -193,17 +208,26 @@ export const useUploadStore = defineStore('upload', () => {
   
   const uploadSong = async (file: File, title: string, artist: string, genre: string, clipStart: number, rightsConfirmed: boolean) => {
     try {
+      // Validation
       if (!audioFingerprint.value) {
         throw new Error('Audio fingerprint not generated')
+      }
+      
+      const authStore = useAuthStore()
+      if (!authStore.user) {
+        throw new Error('User not authenticated')
       }
       
       uploading.value = true
       uploadMessage.value = 'Preparing upload...'
       uploadError.value = null
       
-      let fileToUpload = file
+      // Step 1: Generate client-side UUID for song
+      const songDbId = uuidv4()
       
-      // Convert WAV to MP3 if needed
+      // Step 2: Convert WAV to MP3 if needed
+      let processedFile = file
+      
       if (needsConversion(file)) {
         uploadMessage.value = 'Converting audio format...'
         conversionStage.value = 'decoding'
@@ -214,48 +238,97 @@ export const useUploadStore = defineStore('upload', () => {
         })
         
         if (!conversionResult.success || !conversionResult.mp3Blob) {
-          throw new Error(conversionResult.error || 'Audio conversion failed')
+          uploadError.value = conversionResult.error || 'Audio conversion failed'
+          throw new Error(uploadError.value)
         }
         
-        fileToUpload = createMp3File(conversionResult.mp3Blob, file.name)
+        processedFile = createMp3File(conversionResult.mp3Blob, file.name)
       }
       
-      // Upload to Supabase Storage
-      uploadMessage.value = 'Uploading to server...'
-      const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileToUpload.name.split('.').pop()}`
+      // Step 3: Build storage path using UUID and processed file extension
+      const fileExtension = processedFile.name.split('.').pop()
+      const storagePath = `songs/${songDbId}.${fileExtension}`
       
-      const { data: uploadData, error: storageError } = await supabaseService.getClient().storage
+      // Step 4: Upload to Supabase Storage
+      uploadMessage.value = 'Uploading to server...'
+      
+      const { error: storageError } = await supabaseService.getClient().storage
         .from('song-audio')
-        .upload(fileName, fileToUpload, {
-          upsert: true,
-          contentType: fileToUpload.type
+        .upload(storagePath, processedFile, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: processedFile.type || 'application/octet-stream'
         })
       
       if (storageError) {
+        uploadError.value = 'Storage upload failed: ' + storageError.message
         throw storageError
       }
       
-      // Create database record
+      // Step 5: Get public URL
+      const publicFileUrl = supabaseService.getClient().storage
+        .from('song-audio')
+        .getPublicUrl(storagePath).data.publicUrl
+      
+      // Step 6: Helper function to get next Monday
+      const getNextMonday = () => {
+        const now = new Date()
+        const dayOfWeek = now.getDay() // Sunday = 0, Monday = 1
+        const daysUntilMonday = (8 - dayOfWeek) % 7 // Days until next Monday
+        const nextMonday = new Date(now)
+        nextMonday.setDate(now.getDate() + daysUntilMonday)
+        nextMonday.setHours(0, 0, 0, 0) // Set to midnight
+        return nextMonday.toISOString()
+      }
+      
+      // Step 7: Insert into songs table with exact payload
       uploadMessage.value = 'Creating song record...'
       
-      const { data: songData, error: songError } = await supabaseService.getClient()
+      const { error: songError } = await supabaseService.getClient()
         .from('songs')
         .insert({
+          id: songDbId,
+          user_id: authStore.user.id,
           title: title.trim(),
           artist: artist.trim(),
+          filename: processedFile.name,
+          url: publicFileUrl,
           genre: genre,
-          audio_url: uploadData.path,
-          audio_fingerprint: audioFingerprint.value,
+          is_active: true,
+          churn_start_date: getNextMonday(),
+          likes: 0,
+          dislikes: 0,
+          churnState: {
+            week: 0,
+            countdownStartDate: null,
+            weeksInChurn: 0,
+            finalScore: null
+          },
           clip_start_time: clipStart,
-          file_size: fileToUpload.size,
-          duration: 30, // 30-second clips
-          created_at: new Date().toISOString()
+          rights_confirmed: true
         })
-        .select()
+        .select('id')
         .single()
       
       if (songError) {
+        uploadError.value = 'Database insert failed: ' + songError.message
         throw songError
+      }
+      
+      // Step 8: Insert audio fingerprint (non-blocking)
+      uploadMessage.value = 'Finalizing...'
+      
+      const { error: fpError } = await supabaseService.getClient()
+        .from('audio_fingerprints')
+        .insert({
+          fingerprint_hash: audioFingerprint.value,
+          song_id: songDbId
+        })
+      
+      if (fpError) {
+        console.warn('Fingerprint insert failed (non-fatal):', fpError)
+      } else {
+        console.log('Audio fingerprint stored successfully')
       }
       
       // Success
@@ -267,11 +340,13 @@ export const useUploadStore = defineStore('upload', () => {
         resetForm()
       }, 2000)
       
-      return songData
+      return { id: songDbId }
       
     } catch (error) {
       console.error('Upload error:', error)
-      uploadError.value = error instanceof Error ? error.message : 'Upload failed'
+      if (!uploadError.value) {
+        uploadError.value = error instanceof Error ? error.message : 'Upload failed'
+      }
       throw error
     } finally {
       uploading.value = false
@@ -343,12 +418,9 @@ export const useUploadStore = defineStore('upload', () => {
       
       // If we got data, merge it with master genres
       if (data && Array.isArray(data) && data.length > 0) {
-        // Create a Set of battle-ready genre names for quick lookup
-        const battleReadySet = new Set(
-          data
-            .filter((item: any) => item.is_battle_ready)
-            .map((item: any) => item.genre)
-        )
+        // Extract genre strings from objects: [{genre: "Funk"}] → ["Funk"]
+        const battleReadyGenresList = data.map((item: any) => item.genre)
+        const battleReadySet = new Set(battleReadyGenresList)
         
         // Map all master genres with correct battle-ready status
         battleReadyGenres.value = MASTER_GENRES.map(genre => ({

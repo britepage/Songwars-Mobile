@@ -139,15 +139,28 @@
             </div>
             
             <!-- File Verified -->
-            <div class="flex items-center space-x-2">
-              <div :class="[
-                'w-3 h-3 rounded-full',
-                uploadStore.isDuplicate ? 'bg-red-500' : 
-                uploadStore.isGeneratingFingerprint ? 'bg-yellow-500' :
-                uploadStore.fingerprintGenerated ? 'bg-green-500' : 
-                'bg-gray-300'
-              ]"></div>
-              <span class="text-sm theme-text-secondary">File Verified</span>
+            <div class="flex items-center justify-between">
+              <span class="theme-text-secondary">File Verified</span>
+              <div class="flex items-center">
+                <div class="w-2 h-2 rounded-full mr-2" 
+                     :class="{
+                       'bg-green-400': uploadStore.fingerprintGenerated && !uploadStore.isDuplicate,
+                       'bg-red-400': uploadStore.isDuplicate,
+                       'bg-yellow-400': uploadStore.isGeneratingFingerprint,
+                       'bg-gray-600': !uploadStore.fingerprintGenerated && !uploadStore.isGeneratingFingerprint
+                     }"></div>
+                <span class="text-sm" 
+                      :class="{
+                        'text-green-400': uploadStore.fingerprintGenerated && !uploadStore.isDuplicate,
+                        'text-red-400': uploadStore.isDuplicate,
+                        'text-yellow-400': uploadStore.isGeneratingFingerprint,
+                        'theme-text-muted': !uploadStore.fingerprintGenerated && !uploadStore.isGeneratingFingerprint
+                      }">
+                  {{ uploadStore.isGeneratingFingerprint ? 'Processing...' : 
+                     uploadStore.isDuplicate ? 'Duplicate' :
+                     uploadStore.fingerprintGenerated ? 'Verified' : 'Pending' }}
+                </span>
+              </div>
             </div>
             
             <!-- Ready to Upload -->
@@ -192,7 +205,10 @@
             Success!
           </span>
           <span v-else-if="uploadStore.isDuplicate" class="flex items-center justify-center">
-            ⚠️ Duplicate Detected
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            Duplicate Detected
           </span>
           <span v-else-if="uploadStore.isGeneratingFingerprint">
             Verifying File...
@@ -267,6 +283,7 @@
 import { ref, onMounted } from 'vue'
 import { useUploadStore } from '@/stores/uploadStore'
 import { useRouter } from 'vue-router'
+import { extractMetadataFromFilename } from '@/utils/titleExtractor'
 import WaveformSelectorDual from './WaveformSelectorDual.vue'
 
 const uploadStore = useUploadStore()
@@ -288,14 +305,76 @@ const handleDrop = async (event: DragEvent) => {
   isDragging.value = false
   const files = event.dataTransfer?.files
   if (files && files.length > 0) {
-    await uploadStore.handleFileSelection(files[0])
+    const file = files[0]
+    
+    // Clear any previous upload status and fingerprint state
+    uploadStore.clearUploadStatus()
+    uploadStore.clearFingerprintState()
+    
+    // Process file for duplicate detection
+    const result = await uploadStore.handleFileSelection(file)
+    
+    if (result.success) {
+      // Load file into form
+      uploadStore.selectedFile = file
+      uploadStore.audioPreviewUrl = URL.createObjectURL(file)
+      uploadStore.clipStartTime = 0
+      
+      // Auto-extract title and artist from filename
+      const metadata = extractMetadataFromFilename(file.name)
+      if (metadata.artist) {
+        uploadStore.artistName = metadata.artist
+      }
+      if (metadata.title) {
+        uploadStore.songTitle = metadata.title
+      }
+    } else {
+      // Show duplicate error
+      alert(result.message)
+      // Clear the file input
+      if (fileInput.value) {
+        fileInput.value.value = ''
+      }
+      uploadStore.selectedFile = null
+      uploadStore.audioPreviewUrl = null
+    }
   }
 }
 
 const handleFileSelect = async (event: Event) => {
   const target = event.target as HTMLInputElement
   if (target.files && target.files.length > 0) {
-    await uploadStore.handleFileSelection(target.files[0])
+    const file = target.files[0]
+    
+    // Clear any previous upload status and fingerprint state
+    uploadStore.clearUploadStatus()
+    uploadStore.clearFingerprintState()
+    
+    // Process file for duplicate detection
+    const result = await uploadStore.handleFileSelection(file)
+    
+    if (result.success) {
+      // Load file into form
+      uploadStore.selectedFile = file
+      uploadStore.audioPreviewUrl = URL.createObjectURL(file)
+      uploadStore.clipStartTime = 0
+      
+      // Auto-extract title and artist from filename
+      const metadata = extractMetadataFromFilename(file.name)
+      if (metadata.artist) {
+        uploadStore.artistName = metadata.artist
+      }
+      if (metadata.title) {
+        uploadStore.songTitle = metadata.title
+      }
+    } else {
+      // Show duplicate error
+      alert(result.message)
+      // Clear the file input
+      target.value = ''
+      uploadStore.selectedFile = null
+      uploadStore.audioPreviewUrl = null
+    }
   }
 }
 

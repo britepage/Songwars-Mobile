@@ -6,7 +6,7 @@ export type ThemeMode = 'light' | 'dark' | 'system'
 
 export const useThemeStore = defineStore('theme', () => {
   // State
-  const theme = ref<ThemeMode>('system')
+  const theme = ref<ThemeMode>('light')
   const systemTheme = ref<'light' | 'dark'>('light')
   const isInitialized = ref(false)
 

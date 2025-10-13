@@ -5,7 +5,8 @@
  * Estimated compression ratio calculation
  */
 
-import { Mp3Encoder } from 'lamejs'
+// Use fixed build that preserves internal constants (e.g., MPEGMode)
+import lamejs from 'lamejs-fixed'
 
 export interface ConversionProgress {
   stage: 'decoding' | 'encoding' | 'complete'
@@ -48,8 +49,27 @@ export async function convertWavToMp3(
       message: 'Audio decoded, preparing for conversion...'
     })
 
-    // Convert to 16-bit PCM data
-    const pcmData = convertTo16BitPCM(audioBuffer)
+    // Prepare 16-bit PCM data per channel
+    const channels = Math.min(audioBuffer.numberOfChannels, 2) // support mono/stereo
+    const length = audioBuffer.length
+    const leftF32 = audioBuffer.getChannelData(0)
+    const rightF32 = channels === 2 ? audioBuffer.getChannelData(1) : null
+
+    // Convert Float32 [-1,1] to 16-bit PCM per channel
+    const leftPCM = new Int16Array(length)
+    for (let i = 0; i < length; i++) {
+      const s = Math.max(-1, Math.min(1, leftF32[i]))
+      leftPCM[i] = s < 0 ? s * 0x8000 : s * 0x7fff
+    }
+
+    let rightPCM: Int16Array | null = null
+    if (rightF32) {
+      rightPCM = new Int16Array(length)
+      for (let i = 0; i < length; i++) {
+        const s = Math.max(-1, Math.min(1, rightF32[i]))
+        rightPCM[i] = s < 0 ? s * 0x8000 : s * 0x7fff
+      }
+    }
     
     onProgress?.({
       stage: 'encoding',
@@ -57,8 +77,14 @@ export async function convertWavToMp3(
       message: 'Converting to MP3...'
     })
 
-    // Encode to MP3 using LameJS
-    const mp3Blob = await encodeToMp3(pcmData, audioBuffer.sampleRate, onProgress)
+    // Encode to MP3 using LameJS (mono or stereo)
+    const mp3Blob = await encodeToMp3({
+      leftPCM,
+      rightPCM,
+      channels,
+      sampleRate: audioBuffer.sampleRate,
+      onProgress
+    })
     
     const originalSize = wavFile.size
     const compressedSize = mp3Blob.size
@@ -89,46 +115,42 @@ export async function convertWavToMp3(
 }
 
 /**
- * Convert AudioBuffer to 16-bit PCM data
- */
-function convertTo16BitPCM(audioBuffer: AudioBuffer): Int16Array {
-  const numberOfChannels = audioBuffer.numberOfChannels
-  const length = audioBuffer.length
-  const pcmData = new Int16Array(length * numberOfChannels)
-  
-  for (let channel = 0; channel < numberOfChannels; channel++) {
-    const channelData = audioBuffer.getChannelData(channel)
-    for (let i = 0; i < length; i++) {
-      const sample = Math.max(-1, Math.min(1, channelData[i]))
-      pcmData[i * numberOfChannels + channel] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF
-    }
-  }
-  
-  return pcmData
-}
-
-/**
  * Encode PCM data to MP3 using LameJS
  */
-async function encodeToMp3(
-  pcmData: Int16Array,
-  sampleRate: number,
+async function encodeToMp3({
+  leftPCM,
+  rightPCM,
+  channels,
+  sampleRate,
+  onProgress
+}: {
+  leftPCM: Int16Array
+  rightPCM: Int16Array | null
+  channels: number
+  sampleRate: number
   onProgress?: (progress: ConversionProgress) => void
-): Promise<Blob> {
+}): Promise<Blob> {
   return new Promise((resolve, reject) => {
     try {
-      // Initialize MP3 encoder (mono, sample rate, 128 kbps)
-      const mp3encoder = new Mp3Encoder(1, sampleRate, 128)
+      // Initialize MP3 encoder (mono/stereo, sample rate, 128 kbps)
+      const bitrateKbps = 128
+      const mp3encoder = new (lamejs as any).Mp3Encoder(channels, sampleRate, bitrateKbps)
       const mp3Data: Int8Array[] = []
       
       const samplesPerFrame = 1152
-      const totalFrames = Math.ceil(pcmData.length / samplesPerFrame)
+      const totalFrames = Math.ceil(leftPCM.length / samplesPerFrame)
       
       // Process audio in chunks
-      for (let i = 0; i < pcmData.length; i += samplesPerFrame) {
+      for (let i = 0; i < leftPCM.length; i += samplesPerFrame) {
         const currentFrame = Math.floor(i / samplesPerFrame)
-        const sampleChunk = pcmData.subarray(i, i + samplesPerFrame)
-        const mp3buf = mp3encoder.encodeBuffer(sampleChunk)
+        const leftChunk = leftPCM.subarray(i, i + samplesPerFrame)
+        let mp3buf: Int8Array
+        if (channels === 2 && rightPCM) {
+          const rightChunk = rightPCM.subarray(i, i + samplesPerFrame)
+          mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk)
+        } else {
+          mp3buf = mp3encoder.encodeBuffer(leftChunk)
+        }
         
         if (mp3buf.length > 0) {
           mp3Data.push(mp3buf)
