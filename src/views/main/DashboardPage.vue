@@ -97,17 +97,27 @@
       </div>
 
       <!-- Upload Section -->
-      <div v-if="activeSection === 'upload'" class="upload-container">
-        <div class="upload-placeholder">
-          <ion-icon :icon="add" class="upload-icon" />
-          <h2>Upload Section</h2>
-          <p>Upload functionality will be implemented here</p>
-          <ion-button 
-            @click="activeSection = 'battle'"
-            fill="outline"
-          >
-            Back to Battle
-          </ion-button>
+      <div v-if="activeSection === 'upload'" class="h-full overflow-y-auto p-4 md:p-8 theme-bg-primary">
+        <div class="w-full max-w-6xl mx-auto">
+          <!-- Upload Header -->
+          <div class="text-center md:text-left mb-8">
+            <div class="flex flex-col md:flex-row items-center justify-center md:justify-start space-y-3 md:space-y-0 md:space-x-3 mb-4">
+              <div class="w-12 h-12 bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-full flex items-center justify-center">
+                <svg class="w-6 h-6 text-black font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
+                </svg>
+              </div>
+              <div class="text-center md:text-left">
+                <h2 class="text-2xl md:text-3xl font-bold theme-text-primary">Upload Your Song</h2>
+                <p class="theme-text-secondary">Share your music with the SongWars community</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Song Uploader Component -->
+          <div>
+            <SongUploader @upload-complete="handleUploadComplete" />
+          </div>
         </div>
       </div>
     </ion-content>
@@ -137,6 +147,7 @@ import { useProfileStore } from '@/stores/profileStore'
 import { useAuthStore } from '@/stores/authStore'
 import TapePlayer from '@/components/core/TapePlayer.vue'
 import ThemeToggle from '@/components/core/ThemeToggle.vue'
+import SongUploader from '@/components/dashboard/SongUploader.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -225,6 +236,11 @@ const skipBattle = () => {
 }
 
 const goToMySongs = () => {
+  router.push('/tabs/my-songs')
+}
+
+const handleUploadComplete = () => {
+  console.log('[Dashboard] Upload completed successfully')
   router.push('/tabs/my-songs')
 }
 

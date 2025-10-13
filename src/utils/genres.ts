@@ -1,81 +1,14 @@
-// Genre constants and utilities
-
-export const GENRES = [
-  'pop',
-  'rock',
-  'hip-hop',
-  'electronic',
-  'country',
-  'jazz',
-  'classical',
-  'other'
+export const MASTER_GENRES = [
+  'Alternative', 'Blues', 'Christian', 'Classical', 'Country',
+  'Dance', 'Electronic', 'Folk', 'Funk', 'Gospel',
+  'Hip-Hop', 'Indie', 'Jazz', 'Latin', 'Metal',
+  'Pop', 'Punk', 'R&B', 'Rap', 'Reggae', 'Rock',
+  'Ska', 'Soul', 'World', 'Other'
 ] as const
 
-export type Genre = typeof GENRES[number]
+export type Genre = typeof MASTER_GENRES[number]
 
-export interface GenreInfo {
-  value: string
-  label: string
-  color: string
-  icon?: string
+export interface BattleReadyGenre {
+  genre: string
+  is_battle_ready: boolean
 }
-
-export const GENRE_INFO: Record<string, GenreInfo> = {
-  pop: {
-    value: 'pop',
-    label: 'Pop',
-    color: '#ec4899'
-  },
-  rock: {
-    value: 'rock',
-    label: 'Rock',
-    color: '#ef4444'
-  },
-  'hip-hop': {
-    value: 'hip-hop',
-    label: 'Hip Hop',
-    color: '#8b5cf6'
-  },
-  electronic: {
-    value: 'electronic',
-    label: 'Electronic',
-    color: '#06b6d4'
-  },
-  country: {
-    value: 'country',
-    label: 'Country',
-    color: '#f59e0b'
-  },
-  jazz: {
-    value: 'jazz',
-    label: 'Jazz',
-    color: '#10b981'
-  },
-  classical: {
-    value: 'classical',
-    label: 'Classical',
-    color: '#6366f1'
-  },
-  other: {
-    value: 'other',
-    label: 'Other',
-    color: '#6b7280'
-  }
-}
-
-export function getGenreInfo(genre: string): GenreInfo {
-  return GENRE_INFO[genre] || GENRE_INFO.other
-}
-
-export function getGenreLabel(genre: string): string {
-  return getGenreInfo(genre).label
-}
-
-export function getGenreColor(genre: string): string {
-  return getGenreInfo(genre).color
-}
-
-export function isValidGenre(genre: string): genre is Genre {
-  return GENRES.includes(genre as Genre)
-}
-

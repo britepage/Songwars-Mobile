@@ -1,253 +1,325 @@
 <template>
-  <ion-card class="song-uploader-card">
-    <ion-card-header>
-      <ion-card-title>Upload New Song</ion-card-title>
-      <ion-card-subtitle>Share your music with the community</ion-card-subtitle>
-    </ion-card-header>
-    
-    <ion-card-content>
-      <form @submit.prevent="handleSubmit">
-        <!-- Title Input -->
-        <ion-item>
-          <ion-label position="stacked">Song Title *</ion-label>
-          <ion-input
-            v-model="formData.title"
-            placeholder="Enter song title"
-            required
-          />
-        </ion-item>
+  <div class="max-w-7xl mx-auto space-y-8">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      
+      <!-- Left Column - Main Upload Area (2/3 width on desktop) -->
+      <div class="lg:col-span-2 space-y-6">
         
-        <!-- Artist Input -->
-        <ion-item>
-          <ion-label position="stacked">Artist Name *</ion-label>
-          <ion-input
-            v-model="formData.artist"
-            placeholder="Enter artist name"
-            required
-          />
-        </ion-item>
-        
-        <!-- Genre Select -->
-        <ion-item>
-          <ion-label position="stacked">Genre *</ion-label>
-          <ion-select v-model="formData.genre" placeholder="Select genre" required>
-            <ion-select-option value="pop">Pop</ion-select-option>
-            <ion-select-option value="rock">Rock</ion-select-option>
-            <ion-select-option value="hip-hop">Hip Hop</ion-select-option>
-            <ion-select-option value="electronic">Electronic</ion-select-option>
-            <ion-select-option value="country">Country</ion-select-option>
-            <ion-select-option value="jazz">Jazz</ion-select-option>
-            <ion-select-option value="classical">Classical</ion-select-option>
-            <ion-select-option value="other">Other</ion-select-option>
-          </ion-select>
-        </ion-item>
-        
-        <!-- File Input -->
-        <div class="file-input-section">
-          <ion-label>Audio File *</ion-label>
-          <div class="file-input-container">
+        <!-- Section 1: File Upload Section -->
+        <div class="rounded-2xl p-6 border theme-bg-card theme-border-card">
+          <h3 class="text-lg font-semibold theme-text-primary mb-4">🔽 Select Audio File</h3>
+          
+          <div 
+            @drop.prevent="handleDrop"
+            @dragover.prevent="isDragging = true"
+            @dragleave.prevent="isDragging = false"
+            :class="[
+              'relative border-2 border-dashed rounded-xl p-8 transition-all',
+              isDragging ? 'border-[#ffd200] bg-yellow-50/10' : 'theme-border-card',
+              uploadStore.selectedFile ? 'bg-blue-50/5' : ''
+            ]"
+          >
             <input
-              type="file"
-              accept="audio/*"
-              @change="handleFileSelect"
               ref="fileInput"
-              class="hidden-input"
+              type="file"
+              accept=".mp3,.wav,.m4a,.aac,.ogg,audio/*"
+              @change="handleFileSelect"
+              class="hidden"
             />
-            <ion-button
-              fill="outline"
-              @click="triggerFileInput"
-              class="file-select-button"
-            >
-              <ion-icon :icon="musicalNotes" slot="start" />
-              {{ selectedFileName || 'Choose Audio File' }}
-            </ion-button>
+            
+            <!-- Empty State -->
+            <div v-if="!uploadStore.selectedFile" class="text-center">
+              <div class="text-6xl mb-4">☁️</div>
+              <h4 class="text-lg font-semibold theme-text-primary mb-2">Upload your song</h4>
+              <p class="theme-text-secondary mb-4">Drag and drop an audio file or browse</p>
+              <p class="text-sm theme-text-secondary mb-6">MP3, WAV, M4A up to 50MB</p>
+              <button
+                @click="$refs.fileInput.click()"
+                class="px-6 py-2 bg-[#ffd200] text-black font-semibold rounded-lg hover:bg-yellow-400 transition"
+              >
+                Browse Files
+              </button>
+            </div>
+            
+            <!-- File Selected State -->
+            <div v-else class="text-center">
+              <div class="text-6xl mb-4">🎵</div>
+              <h4 class="text-lg font-semibold theme-text-primary mb-2">{{ uploadStore.selectedFile.name }}</h4>
+              <p class="theme-text-secondary mb-2">{{ uploadStore.fileSizeFormatted }}</p>
+              <p v-if="uploadStore.needsFileConversion" class="text-sm text-blue-600 mb-4">
+                ⚠️ WAV file will be converted to MP3 (est. {{ uploadStore.estimatedConversionTime }})
+              </p>
+              <button
+                @click="uploadStore.removeFile()"
+                class="text-red-600 hover:text-red-700 font-medium"
+              >
+                Remove file
+              </button>
+            </div>
           </div>
         </div>
         
-        <!-- Upload Button -->
-        <ion-button
-          expand="block"
-          type="submit"
-          class="bigbutton upload-button"
-          :disabled="!canSubmit || isUploading"
-        >
-          {{ isUploading ? 'Uploading...' : 'Upload Song' }}
-        </ion-button>
-      </form>
+        <!-- Section 2: Song Details Form -->
+        <div class="rounded-2xl p-6 border theme-bg-card theme-border-card">
+          <h3 class="text-lg font-semibold theme-text-primary mb-4">📝 Song Details</h3>
+          
+          <div class="space-y-4">
+            <!-- Song Title -->
+            <div>
+              <label class="block text-sm font-medium theme-text-primary mb-2">Song Title *</label>
+              <input
+                v-model="uploadStore.songTitle"
+                type="text"
+                placeholder="Enter song title"
+                class="w-full px-4 py-2 rounded-lg border theme-bg-card theme-border-card theme-text-primary focus:ring-2 focus:ring-[#ffd200] focus:border-transparent"
+              />
+            </div>
+            
+            <!-- Artist Name and Genre (side by side on desktop) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium theme-text-primary mb-2">Artist Name *</label>
+                <input
+                  v-model="uploadStore.artistName"
+                  type="text"
+                  placeholder="Enter artist name"
+                  class="w-full px-4 py-2 rounded-lg border theme-bg-card theme-border-card theme-text-primary focus:ring-2 focus:ring-[#ffd200] focus:border-transparent"
+                />
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium theme-text-primary mb-2">Genre *</label>
+                <select
+                  v-model="uploadStore.selectedGenre"
+                  class="w-full px-4 py-2 rounded-lg border theme-bg-card theme-border-card theme-text-primary focus:ring-2 focus:ring-[#ffd200] focus:border-transparent"
+                >
+                  <option value="">Select genre</option>
+                  <option 
+                    v-for="genreItem in uploadStore.battleReadyGenres" 
+                    :key="genreItem.genre"
+                    :value="genreItem.genre"
+                  >
+                    {{ genreItem.is_battle_ready ? '●' : '○' }} {{ genreItem.genre }}
+                  </option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Section 3: Waveform Clip Selection -->
+        <div v-if="uploadStore.audioPreviewUrl" class="rounded-2xl p-6 border theme-bg-card theme-border-card">
+          <h3 class="text-lg font-semibold theme-text-primary mb-4">✂️ Select 30-Second Clip</h3>
+          <WaveformSelectorDual
+            :audio-url="uploadStore.audioPreviewUrl"
+            :initial-clip-start="uploadStore.clipStartTime"
+            @clip-changed="uploadStore.setClipStartTime"
+          />
+        </div>
+      </div>
       
-      <!-- Upload Progress -->
-      <UploadProgress
-        v-if="showProgress"
-        :file-name="selectedFileName"
-        :file-size="fileSize"
-        :progress="uploadProgress"
-        :status="uploadStatus"
-        :error-message="uploadError"
-      />
-    </ion-card-content>
-  </ion-card>
+      <!-- Right Column - Upload Actions & Status (1/3 width on desktop) -->
+      <div class="lg:col-span-1 space-y-6">
+        
+        <!-- Section 4: Upload Status Panel -->
+        <div class="rounded-2xl p-6 border theme-bg-card theme-border-card">
+          <h3 class="text-lg font-semibold theme-text-primary mb-4">📊 Upload Status</h3>
+          
+          <div class="space-y-3">
+            <!-- File Selected -->
+            <div class="flex items-center space-x-2">
+              <div :class="['w-3 h-3 rounded-full', uploadStore.hasValidFile ? 'bg-green-500' : 'bg-gray-300']"></div>
+              <span class="text-sm theme-text-secondary">File Selected</span>
+            </div>
+            
+            <!-- Details Complete -->
+            <div class="flex items-center space-x-2">
+              <div :class="['w-3 h-3 rounded-full', uploadStore.hasCompleteDetails ? 'bg-green-500' : 'bg-gray-300']"></div>
+              <span class="text-sm theme-text-secondary">Details Complete</span>
+            </div>
+            
+            <!-- File Verified -->
+            <div class="flex items-center space-x-2">
+              <div :class="[
+                'w-3 h-3 rounded-full',
+                uploadStore.isDuplicate ? 'bg-red-500' : 
+                uploadStore.isGeneratingFingerprint ? 'bg-yellow-500' :
+                uploadStore.fingerprintGenerated ? 'bg-green-500' : 
+                'bg-gray-300'
+              ]"></div>
+              <span class="text-sm theme-text-secondary">File Verified</span>
+            </div>
+            
+            <!-- Ready to Upload -->
+            <div class="flex items-center space-x-2">
+              <div :class="['w-3 h-3 rounded-full', uploadStore.canUpload ? 'bg-green-500' : 'bg-gray-300']"></div>
+              <span class="text-sm theme-text-secondary">Ready to Upload</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Section 5: Rights Confirmation -->
+        <div class="rounded-2xl p-6 border theme-bg-card theme-border-card">
+          <label class="flex items-start space-x-3 cursor-pointer">
+            <input
+              type="checkbox"
+              v-model="uploadStore.rightsConfirmed"
+              class="mt-1"
+            />
+            <span class="text-sm theme-text-secondary">
+              I confirm I own the rights to upload and distribute this audio.
+            </span>
+          </label>
+        </div>
+        
+        <!-- Section 6: Upload Button (6 States) -->
+        <button
+          @click="handleUpload"
+          :disabled="!uploadStore.canUpload || uploadStore.uploading || uploadStore.isGeneratingFingerprint"
+          :class="[
+            'w-full py-4 rounded-lg font-bold text-lg transition-all',
+            uploadStore.isSuccess ? 'bg-green-500 text-white' :
+            uploadStore.isDuplicate ? 'bg-gray-400 text-gray-700 cursor-not-allowed' :
+            uploadStore.uploading || uploadStore.isGeneratingFingerprint ? 'bg-blue-500 text-white' :
+            uploadStore.canUpload ? 'bg-[#ffd200] text-black hover:bg-yellow-400' :
+            'bg-gray-300 text-gray-500 cursor-not-allowed'
+          ]"
+        >
+          <span v-if="uploadStore.isSuccess" class="flex items-center justify-center">
+            <svg class="w-6 h-6 mr-2 animate-scale-check" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+            </svg>
+            Success!
+          </span>
+          <span v-else-if="uploadStore.isDuplicate" class="flex items-center justify-center">
+            ⚠️ Duplicate Detected
+          </span>
+          <span v-else-if="uploadStore.isGeneratingFingerprint">
+            Verifying File...
+          </span>
+          <span v-else-if="uploadStore.uploading">
+            {{ uploadStore.conversionStage === 'decoding' ? 'Decoding...' : 
+               uploadStore.conversionStage === 'encoding' ? 'Converting...' : 
+               'Uploading...' }}
+          </span>
+          <span v-else>
+            Upload Song
+          </span>
+        </button>
+        
+        <!-- Section 7: Upload Guidelines -->
+        <div class="rounded-2xl p-6 border border-yellow-400/30 bg-yellow-50/5">
+          <div class="flex items-start space-x-2 mb-4">
+            <span class="text-yellow-500">ℹ️</span>
+            <h3 class="text-sm font-semibold theme-text-primary">Upload Guidelines</h3>
+          </div>
+          
+          <ul class="space-y-2">
+            <li class="flex items-start space-x-2 text-sm theme-text-secondary">
+              <span class="text-green-500 mt-0.5">✓</span>
+              <span>Only original music you own the rights to</span>
+            </li>
+            <li class="flex items-start space-x-2 text-sm theme-text-secondary">
+              <span class="text-green-500 mt-0.5">✓</span>
+              <span>High quality audio files (MP3, WAV, M4A)</span>
+            </li>
+            <li class="flex items-start space-x-2 text-sm theme-text-secondary">
+              <span class="text-green-500 mt-0.5">✓</span>
+              <span>Maximum file size: 50MB</span>
+            </li>
+            <li class="flex items-start space-x-2 text-sm theme-text-secondary">
+              <span class="text-green-500 mt-0.5">✓</span>
+              <span>Songs enter the weekly battle rotation</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Section 8: Error Display (full width) -->
+    <div 
+      v-if="uploadStore.uploadError && !uploadStore.uploading && !uploadStore.isSuccess"
+      class="rounded-2xl p-6 border-2 border-red-500 bg-red-50/10"
+    >
+      <div class="flex items-start space-x-3">
+        <span class="text-red-500 text-xl">⚠️</span>
+        <div class="flex-1">
+          <h3 class="text-lg font-semibold text-red-600 mb-2">Upload Error</h3>
+          <pre class="text-sm text-red-700 whitespace-pre-wrap">{{ uploadStore.uploadError }}</pre>
+          
+          <!-- WAV Conversion Help (conditional) -->
+          <div v-if="uploadStore.uploadError.toLowerCase().includes('wav')" class="mt-4 p-4 bg-blue-50/10 rounded-lg border border-blue-300">
+            <h4 class="font-semibold text-blue-700 mb-2">WAV Conversion Help</h4>
+            <p class="text-sm text-blue-600 mb-3">Try converting your WAV file to MP3 before uploading:</p>
+            <ul class="text-sm text-blue-600 space-y-1">
+              <li>• <a href="https://cloudconvert.com/wav-to-mp3" target="_blank" class="underline">CloudConvert</a> - Free online converter</li>
+              <li>• <a href="https://www.audacityteam.org/" target="_blank" class="underline">Audacity</a> - Free audio editor</li>
+            </ul>
+            <p class="text-sm text-blue-600 mt-3">Export as MP3, 320kbps recommended</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import {
-  IonCard,
-  IonCardHeader,
-  IonCardTitle,
-  IonCardSubtitle,
-  IonCardContent,
-  IonItem,
-  IonLabel,
-  IonInput,
-  IonSelect,
-  IonSelectOption,
-  IonButton,
-  IonIcon
-} from '@ionic/vue'
-import { musicalNotes } from 'ionicons/icons'
-import { ref, computed } from 'vue'
-import { useSongStore } from '@/stores/songStore'
-import UploadProgress from '@/components/core/UploadProgress.vue'
+import { ref, onMounted } from 'vue'
+import { useUploadStore } from '@/stores/uploadStore'
+import { useRouter } from 'vue-router'
+import WaveformSelectorDual from './WaveformSelectorDual.vue'
 
-const songStore = useSongStore()
+const uploadStore = useUploadStore()
+const router = useRouter()
 
 const fileInput = ref<HTMLInputElement | null>(null)
-const formData = ref({
-  title: '',
-  artist: '',
-  genre: ''
-})
-const selectedFile = ref<File | null>(null)
-const selectedFileName = ref('')
-const fileSize = ref(0)
-const isUploading = ref(false)
-const uploadProgress = ref(0)
-const uploadStatus = ref<'uploading' | 'processing' | 'completed' | 'error' | 'cancelled'>('uploading')
-const uploadError = ref<string | undefined>(undefined)
-const showProgress = ref(false)
+const isDragging = ref(false)
 
 const emit = defineEmits<{
-  uploadComplete: [songId: string]
-  uploadError: [error: string]
+  uploadComplete: []
 }>()
 
-const canSubmit = computed(() => {
-  return formData.value.title && 
-         formData.value.artist && 
-         formData.value.genre && 
-         selectedFile.value
+// Load battle-ready genres on mount
+onMounted(async () => {
+  await uploadStore.loadBattleReadyGenres()
 })
 
-const triggerFileInput = () => {
-  fileInput.value?.click()
-}
-
-const handleFileSelect = (event: Event) => {
-  const target = event.target as HTMLInputElement
-  if (target.files && target.files[0]) {
-    selectedFile.value = target.files[0]
-    selectedFileName.value = target.files[0].name
-    fileSize.value = target.files[0].size
+const handleDrop = async (event: DragEvent) => {
+  isDragging.value = false
+  const files = event.dataTransfer?.files
+  if (files && files.length > 0) {
+    await uploadStore.handleFileSelection(files[0])
   }
 }
 
-const handleSubmit = async () => {
-  if (!canSubmit.value || !selectedFile.value) return
-  
-  isUploading.value = true
-  showProgress.value = true
-  uploadProgress.value = 0
-  uploadStatus.value = 'uploading'
-  uploadError.value = undefined
+const handleFileSelect = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (target.files && target.files.length > 0) {
+    await uploadStore.handleFileSelection(target.files[0])
+  }
+}
+
+const handleUpload = async () => {
+  if (!uploadStore.selectedFile) return
   
   try {
-    // Simulate progress
-    const progressInterval = setInterval(() => {
-      if (uploadProgress.value < 90) {
-        uploadProgress.value += 10
-      }
-    }, 200)
+    await uploadStore.uploadSong(
+      uploadStore.selectedFile,
+      uploadStore.songTitle,
+      uploadStore.artistName,
+      uploadStore.selectedGenre,
+      uploadStore.clipStartTime,
+      uploadStore.rightsConfirmed
+    )
     
-    const result = await songStore.uploadSong({
-      file: selectedFile.value,
-      title: formData.value.title,
-      artist: formData.value.artist,
-      genre: formData.value.genre
-    })
-    
-    clearInterval(progressInterval)
-    uploadProgress.value = 100
-    
-    if (result.success) {
-      uploadStatus.value = 'completed'
-      
-      // Reset form
-      formData.value = { title: '', artist: '', genre: '' }
-      selectedFile.value = null
-      selectedFileName.value = ''
-      
-      if (result.data) {
-        emit('uploadComplete', result.data.id)
-      }
-      
-      // Hide progress after delay
-      setTimeout(() => {
-        showProgress.value = false
-        uploadProgress.value = 0
-      }, 2000)
-    } else {
-      uploadStatus.value = 'error'
-      uploadError.value = result.error || 'Upload failed'
-      emit('uploadError', uploadError.value)
-    }
+    // Emit completion event
+    emit('uploadComplete')
   } catch (error) {
-    uploadStatus.value = 'error'
-    uploadError.value = error instanceof Error ? error.message : 'Upload failed'
-    emit('uploadError', uploadError.value)
-  } finally {
-    isUploading.value = false
+    console.error('Upload failed:', error)
   }
 }
 </script>
 
 <style scoped>
-.song-uploader-card {
-  margin: 1rem;
-}
-
-ion-item {
-  --background: var(--card-bg);
-  --border-color: var(--border-color);
-  margin-bottom: 1rem;
-}
-
-.file-input-section {
-  margin: 1rem 0;
-}
-
-.file-input-section ion-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
-.file-input-container {
-  position: relative;
-}
-
-.hidden-input {
-  display: none;
-}
-
-.file-select-button {
-  width: 100%;
-  --border-color: var(--border-color);
-  text-transform: none;
-  font-weight: normal;
-}
-
-.upload-button {
-  margin-top: 1.5rem;
-}
+/* Add any additional styles if needed */
 </style>
