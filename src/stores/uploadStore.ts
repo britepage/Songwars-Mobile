@@ -93,6 +93,23 @@ export const useUploadStore = defineStore('upload', () => {
     return seconds < 60 ? `${seconds} seconds` : `${Math.ceil(seconds / 60)} minute${Math.ceil(seconds / 60) > 1 ? 's' : ''}`
   })
   
+  const estimatedFileSize = computed(() => {
+    if (!selectedFile.value || !needsFileConversion.value) return ''
+    
+    // Estimate MP3 size (roughly 1MB per minute at 128kbps)
+    const originalSize = selectedFile.value.size
+    const estimatedMp3Size = originalSize * 0.1 // MP3 is typically ~10% of WAV
+    
+    return formatFileSize(estimatedMp3Size)
+  })
+  
+  const compressionInfo = computed(() => {
+    if (!selectedFile.value || !needsFileConversion.value) return ''
+    
+    const compressionRatio = Math.round(90) // ~90% compression for WAV to MP3
+    return `${compressionRatio}% smaller after MP3 conversion`
+  })
+  
   // Actions
   const handleFileSelection = async (file: File): Promise<{ success: boolean; message: string }> => {
     try {
@@ -502,6 +519,8 @@ export const useUploadStore = defineStore('upload', () => {
     fileSizeFormatted,
     needsFileConversion,
     estimatedConversionTime,
+    estimatedFileSize,
+    compressionInfo,
     
     // Actions
     handleFileSelection,

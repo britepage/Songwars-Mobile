@@ -190,11 +190,15 @@ async function encodeToMp3({
 }
 
 /**
- * Check if file needs conversion (WAV files)
+ * Check if file needs conversion (WAV, M4A, AAC files)
  */
 export function needsConversion(file: File): boolean {
-  const wavMimeTypes = ['audio/wav', 'audio/wave', 'audio/x-wav']
-  return wavMimeTypes.includes(file.type)
+  const wavExtensions = ['.wav', '.wave']
+  const m4aExtensions = ['.m4a', '.aac']
+  const fileName = file.name.toLowerCase()
+
+  return wavExtensions.some(ext => fileName.endsWith(ext)) ||
+         m4aExtensions.some(ext => fileName.endsWith(ext))
 }
 
 /**

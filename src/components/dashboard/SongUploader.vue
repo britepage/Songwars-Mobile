@@ -7,16 +7,21 @@
         
         <!-- Section 1: File Upload Section -->
         <div class="rounded-2xl p-6 border theme-bg-card theme-border-card">
-          <h3 class="text-lg font-semibold theme-text-primary mb-4">🔽 Select Audio File</h3>
+          <h3 class="text-lg font-semibold theme-text-primary mb-4 flex items-center">
+            <svg class="w-5 h-5 mr-2 text-[#ffd200]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
+            </svg>
+            Select Audio File
+          </h3>
           
           <div 
             @drop.prevent="handleDrop"
             @dragover.prevent="isDragging = true"
             @dragleave.prevent="isDragging = false"
             :class="[
-              'relative border-2 border-dashed rounded-xl p-8 transition-all',
-              isDragging ? 'border-[#ffd200] bg-yellow-50/10' : 'theme-border-card',
-              uploadStore.selectedFile ? 'bg-blue-50/5' : ''
+              'border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer group border-[#e5e7eb]',
+              isDragging ? 'border-[#ffd200]' : '',
+              uploadStore.selectedFile ? 'bg-[#ffd200]/5' : ''
             ]"
           >
             <input
@@ -29,32 +34,40 @@
             
             <!-- Empty State -->
             <div v-if="!uploadStore.selectedFile" class="text-center">
-              <div class="text-6xl mb-4">☁️</div>
-              <h4 class="text-lg font-semibold theme-text-primary mb-2">Upload your song</h4>
-              <p class="theme-text-secondary mb-4">Drag and drop an audio file or browse</p>
-              <p class="text-sm theme-text-secondary mb-6">MP3, WAV, M4A up to 50MB</p>
-              <button
-                @click="$refs.fileInput.click()"
-                class="px-6 py-2 bg-[#ffd200] text-black font-semibold rounded-lg hover:bg-yellow-400 transition"
-              >
-                Browse Files
-              </button>
+              <div class="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                <svg class="w-12 h-12 theme-text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
+                </svg>
+              </div>
+              <p class="text-xl font-medium theme-text-primary mb-2">Upload your song</p>
+              <p class="theme-text-secondary">Drag and drop an audio file or <button @click="$refs.fileInput.click()" class="text-[#ffd200] font-medium hover:underline cursor-pointer outline-none focus:outline-none">browse</button></p>
+              <p class="text-sm theme-text-muted mt-2">MP3, WAV, M4A up to 50MB</p>
             </div>
             
             <!-- File Selected State -->
-            <div v-else class="text-center">
-              <div class="text-6xl mb-4">🎵</div>
-              <h4 class="text-lg font-semibold theme-text-primary mb-2">{{ uploadStore.selectedFile.name }}</h4>
-              <p class="theme-text-secondary mb-2">{{ uploadStore.fileSizeFormatted }}</p>
-              <p v-if="uploadStore.needsFileConversion" class="text-sm text-blue-600 mb-4">
-                ⚠️ WAV file will be converted to MP3 (est. {{ uploadStore.estimatedConversionTime }})
-              </p>
-              <button
-                @click="uploadStore.removeFile()"
-                class="text-red-600 hover:text-red-700 font-medium"
-              >
-                Remove file
-              </button>
+            <div v-else class="space-y-3">
+              <div class="w-16 h-16 mx-auto bg-[#ffd200] rounded-full flex items-center justify-center">
+                <svg class="w-8 h-8 text-black" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+                </svg>
+              </div>
+              <div>
+                <p class="text-lg font-medium text-[#ffd200]">{{ uploadStore.selectedFile.name }}</p>
+                <div class="theme-text-secondary space-y-1">
+                  <p>Original: {{ uploadStore.fileSizeFormatted }}</p>
+                  <div v-if="uploadStore.needsFileConversion" class="text-sm">
+                    <p class="text-green-400">After conversion: {{ uploadStore.estimatedFileSize }}</p>
+                    <p class="text-green-300 text-xs">{{ uploadStore.compressionInfo }}</p>
+                    <p v-if="uploadStore.selectedFile?.name.toLowerCase().endsWith('.wav')" class="text-yellow-400 text-xs mt-1">⚡ Converting to MP3 (may take 30-60s)</p>
+                  </div>
+                </div>
+                <button
+                  @click="uploadStore.removeFile()"
+                  class="text-red-400 hover:text-red-300 text-sm font-medium mt-2 transition-colors"
+                >
+                  Remove file
+                </button>
+              </div>
             </div>
           </div>
         </div>

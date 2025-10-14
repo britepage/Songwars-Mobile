@@ -97,7 +97,7 @@
       </div>
 
       <!-- Upload Section -->
-      <div v-if="activeSection === 'upload'" class="h-full overflow-y-auto p-4 md:p-8 theme-bg-primary">
+      <div v-if="activeSection === 'upload'" class="h-full overflow-y-auto px-4 md:px-8 pt-24 pb-36 theme-bg-primary">
         <div class="w-full max-w-6xl mx-auto">
           <!-- Upload Header -->
           <div class="text-center md:text-left mb-8">
