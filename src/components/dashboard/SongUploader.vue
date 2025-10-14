@@ -74,48 +74,52 @@
         
         <!-- Section 2: Song Details Form -->
         <div class="rounded-2xl p-6 border theme-bg-card theme-border-card">
-          <h3 class="text-lg font-semibold theme-text-primary mb-4">📝 Song Details</h3>
+          <h3 class="text-lg font-semibold theme-text-primary mb-6 flex items-center">
+            <svg class="w-5 h-5 mr-2 text-[#ffd200]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+            </svg>
+            Song Details
+          </h3>
           
-          <div class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Song Title -->
-            <div>
-              <label class="block text-sm font-medium theme-text-primary mb-2">Song Title *</label>
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium theme-text-secondary mb-2">Song Title</label>
               <input
                 v-model="uploadStore.songTitle"
                 type="text"
                 placeholder="Enter song title"
-                class="w-full px-4 py-2 rounded-lg border theme-bg-card theme-border-card theme-text-primary focus:ring-2 focus:ring-[#ffd200] focus:border-transparent"
+                class="w-full px-4 py-3 rounded-lg border theme-bg-card theme-border-card theme-text-primary focus:ring-2 focus:ring-[#ffd200] focus:border-transparent transition-all"
               />
             </div>
             
-            <!-- Artist Name and Genre (side by side on desktop) -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium theme-text-primary mb-2">Artist Name *</label>
-                <input
-                  v-model="uploadStore.artistName"
-                  type="text"
-                  placeholder="Enter artist name"
-                  class="w-full px-4 py-2 rounded-lg border theme-bg-card theme-border-card theme-text-primary focus:ring-2 focus:ring-[#ffd200] focus:border-transparent"
-                />
-              </div>
-              
-              <div>
-                <label class="block text-sm font-medium theme-text-primary mb-2">Genre *</label>
-                <select
-                  v-model="uploadStore.selectedGenre"
-                  class="w-full px-4 py-2 rounded-lg border theme-bg-card theme-border-card theme-text-primary focus:ring-2 focus:ring-[#ffd200] focus:border-transparent"
+            <!-- Artist Name -->
+            <div>
+              <label class="block text-sm font-medium theme-text-secondary mb-2">Artist Name</label>
+              <input
+                v-model="uploadStore.artistName"
+                type="text"
+                placeholder="Enter artist name"
+                class="w-full px-4 py-3 rounded-lg border theme-bg-card theme-border-card theme-text-primary focus:ring-2 focus:ring-[#ffd200] focus:border-transparent transition-all"
+              />
+            </div>
+            
+            <!-- Genre -->
+            <div>
+              <label class="block text-sm font-medium theme-text-secondary mb-2">Genre</label>
+              <select
+                v-model="uploadStore.selectedGenre"
+                class="w-full px-4 py-3 rounded-lg border theme-bg-card theme-border-card theme-text-primary focus:ring-2 focus:ring-[#ffd200] focus:border-transparent transition-all appearance-none cursor-pointer"
+              >
+                <option value="">Select genre</option>
+                <option 
+                  v-for="genreItem in uploadStore.battleReadyGenres" 
+                  :key="genreItem.genre"
+                  :value="genreItem.genre"
                 >
-                  <option value="">Select genre</option>
-                  <option 
-                    v-for="genreItem in uploadStore.battleReadyGenres" 
-                    :key="genreItem.genre"
-                    :value="genreItem.genre"
-                  >
-                    {{ genreItem.is_battle_ready ? '●' : '○' }} {{ genreItem.genre }}
-                  </option>
-                </select>
-              </div>
+                  {{ genreItem.genre }}{{ genreItem.is_battle_ready ? ' ●' : ' ○' }}
+                </option>
+              </select>
             </div>
           </div>
         </div>
@@ -136,19 +140,34 @@
         
         <!-- Section 4: Upload Status Panel -->
         <div class="rounded-2xl p-6 border theme-bg-card theme-border-card">
-          <h3 class="text-lg font-semibold theme-text-primary mb-4">📊 Upload Status</h3>
+          <h3 class="text-lg font-semibold theme-text-primary mb-4 flex items-center">
+            <svg class="w-5 h-5 mr-2 text-[#ffd200]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            Upload Status
+          </h3>
           
           <div class="space-y-3">
             <!-- File Selected -->
-            <div class="flex items-center space-x-2">
-              <div :class="['w-3 h-3 rounded-full', uploadStore.hasValidFile ? 'bg-green-500' : 'bg-gray-300']"></div>
-              <span class="text-sm theme-text-secondary">File Selected</span>
+            <div class="flex items-center justify-between">
+              <span class="theme-text-secondary">File Selected</span>
+              <div class="flex items-center">
+                <div class="w-2 h-2 rounded-full mr-2" :class="uploadStore.selectedFile ? 'bg-green-400' : 'bg-gray-600'"></div>
+                <span class="text-sm" :class="uploadStore.selectedFile ? 'text-green-400' : 'theme-text-muted'">
+                  {{ uploadStore.selectedFile ? 'Yes' : 'No' }}
+                </span>
+              </div>
             </div>
             
             <!-- Details Complete -->
-            <div class="flex items-center space-x-2">
-              <div :class="['w-3 h-3 rounded-full', uploadStore.hasCompleteDetails ? 'bg-green-500' : 'bg-gray-300']"></div>
-              <span class="text-sm theme-text-secondary">Details Complete</span>
+            <div class="flex items-center justify-between">
+              <span class="theme-text-secondary">Details Complete</span>
+              <div class="flex items-center">
+                <div class="w-2 h-2 rounded-full mr-2" :class="uploadStore.hasCompleteDetails ? 'bg-green-400' : 'bg-gray-600'"></div>
+                <span class="text-sm" :class="uploadStore.hasCompleteDetails ? 'text-green-400' : 'theme-text-muted'">
+                  {{ uploadStore.hasCompleteDetails ? 'Yes' : 'No' }}
+                </span>
+              </div>
             </div>
             
             <!-- File Verified -->
@@ -177,9 +196,14 @@
             </div>
             
             <!-- Ready to Upload -->
-            <div class="flex items-center space-x-2">
-              <div :class="['w-3 h-3 rounded-full', uploadStore.canUpload ? 'bg-green-500' : 'bg-gray-300']"></div>
-              <span class="text-sm theme-text-secondary">Ready to Upload</span>
+            <div class="flex items-center justify-between">
+              <span class="theme-text-secondary">Ready to Upload</span>
+              <div class="flex items-center">
+                <div class="w-2 h-2 rounded-full mr-2" :class="uploadStore.canUpload ? 'bg-green-400' : 'bg-gray-600'"></div>
+                <span class="text-sm" :class="uploadStore.canUpload ? 'text-green-400' : 'theme-text-muted'">
+                  {{ uploadStore.canUpload ? 'Yes' : 'No' }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
