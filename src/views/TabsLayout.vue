@@ -1,16 +1,8 @@
 <template>
-  <ion-page>
-    <ion-content>
-      <router-view />
-    </ion-content>
-    
-    <!-- Custom Footer -->
-    <FooterNavigation />
-  </ion-page>
+  <router-view />
 </template>
 
 <script setup lang="ts">
-import { IonPage, IonContent } from '@ionic/vue'
-import FooterNavigation from '@/components/core/FooterNavigation.vue'
+// No Ion wrappers or footer here; pages own their own ion-page/ion-content
 </script>
 

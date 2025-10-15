@@ -372,6 +372,19 @@ html, body, ion-app, ion-content {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 }
 
+/* Theme-aware background for all Ionic roots (prevents black swaths) */
+html, body, ion-app, .ion-page, ion-router-outlet, ion-content {
+  background-color: var(--bg-primary) !important;
+}
+
+/* Force ion-content shadow background to follow theme */
+ion-content { 
+  --background: var(--bg-primary) !important; 
+}
+ion-content::part(background) {
+  background: var(--bg-primary) !important;
+}
+
 /* Font smoothing for parity */
 body {
   -webkit-font-smoothing: antialiased;

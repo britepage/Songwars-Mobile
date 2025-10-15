@@ -1,91 +1,24 @@
 <template>
   <ion-page>
-    <ion-content :fullscreen="true" class="pt-16">
-      <!-- Upload Button -->
-      <div class="upload-section">
-        <ion-button 
-          expand="block"
-          class="bigbutton upload-button"
-          @click="showUploadModal = true"
-        >
-          <ion-icon :icon="add" slot="start" />
-          Upload New Song
-        </ion-button>
-      </div>
-      
-      <!-- Tabs for Active/Deleted Songs -->
-      <ion-segment v-model="selectedTab" @ionChange="handleTabChange">
-        <ion-segment-button value="active">
-          <ion-label>Active ({{ activeSongs.length }})</ion-label>
-        </ion-segment-button>
-        <ion-segment-button value="deleted">
-          <ion-label>Trash ({{ deletedSongs.length }})</ion-label>
-        </ion-segment-button>
-      </ion-segment>
-      
-      <!-- Loading State -->
-      <div v-if="isLoading" class="loading-container">
-        <ion-spinner name="crescent" color="primary" />
-        <p>Loading songs...</p>
-      </div>
-      
-      <!-- Active Songs -->
-      <div v-else-if="selectedTab === 'active'" class="songs-container">
-        <div v-if="activeSongs.length === 0" class="no-songs">
-          <ion-icon :icon="musicalNotes" class="no-songs-icon" />
-          <h3>No Songs Yet</h3>
-          <p>Upload your first song to get started!</p>
-        </div>
-        
-        <SongCard 
-          v-for="song in activeSongs" 
-          :key="song.id"
-          :song="song"
-          :show-stats="true"
-          :show-play-button="true"
-          @play="handlePlay"
-        />
-      </div>
-      
-      <!-- Deleted Songs (Trash) -->
-      <div v-else class="songs-container">
-        <div v-if="deletedSongs.length === 0" class="no-songs">
-          <ion-icon :icon="trash" class="no-songs-icon" />
-          <h3>Trash is Empty</h3>
-          <p>Deleted songs will appear here</p>
-        </div>
-        
-        <ion-card 
-          v-for="song in deletedSongs" 
-          :key="song.id"
-          class="deleted-song-card"
-        >
-          <ion-card-content>
-            <div class="song-info">
-              <h4>{{ song.title }}</h4>
-              <p>{{ song.artist }}</p>
-              <p class="deleted-date">Deleted {{ formatDate(song.deleted_at) }}</p>
+    <ion-content :fullscreen="true" class="theme-bg-primary">
+      <div class="min-h-screen p-4 md:p-8 pt-28 theme-bg-primary">
+        <div class="max-w-6xl mx-auto">
+          <!-- Header -->
+          <div class="flex items-center justify-between mb-8">
+            <div class="flex items-center space-x-3">
+              <div class="w-12 h-12 bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-full flex items-center justify-center">
+                <svg class="w-6 h-6 text-black" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+              </div>
+              <div>
+                <h1 class="text-2xl md:text-3xl font-bold text-white theme-text-primary">Your Songs</h1>
+                <p class="text-gray-400 theme-text-secondary">Manage your uploaded tracks</p>
+              </div>
             </div>
-            <div class="song-actions">
-              <ion-button 
-                fill="outline"
-                size="small"
-                @click="restoreSong(song.id)"
-              >
-                <ion-icon :icon="arrowUndo" slot="start" />
-                Restore
-              </ion-button>
-              <ion-button 
-                fill="clear"
-                size="small"
-                color="danger"
-                @click="permanentlyDelete(song.id)"
-              >
-                <ion-icon :icon="trashBin" slot="icon-only" />
-              </ion-button>
-            </div>
-          </ion-card-content>
-        </ion-card>
+          </div>
+
+          <!-- Song List -->
+          <SongList />
+        </div>
       </div>
       
       <!-- Upload Modal -->
@@ -158,42 +91,18 @@
 </template>
 
 <script setup lang="ts">
-import {
-  IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonContent,
-  IonButton,
-  IonButtons,
-  IonIcon,
-  IonSpinner,
-  IonSegment,
-  IonSegmentButton,
-  IonLabel,
-  IonCard,
-  IonCardContent,
-  IonModal,
-  IonItem,
-  IonInput,
-  IonSelect,
-  IonSelectOption
-} from '@ionic/vue'
-import { add, musicalNotes, trash, arrowUndo, trashBin } from 'ionicons/icons'
-import { ref, computed, onMounted } from 'vue'
+import { IonPage, IonContent, IonButton, IonButtons, IonModal, IonItem, IonInput, IonSelect, IonSelectOption, IonHeader, IonToolbar, IonTitle, IonLabel } from '@ionic/vue'
+import { ref, onMounted } from 'vue'
 import { useSongStore } from '@/stores/songStore'
 import { useProfileStore } from '@/stores/profileStore'
 import { useAuthStore } from '@/stores/authStore'
-import SongCard from '@/components/core/SongCard.vue'
-import ThemeToggle from '@/components/core/ThemeToggle.vue'
+import SongList from '@/components/dashboard/SongList.vue'
 import UploadProgress from '@/components/core/UploadProgress.vue'
 
 const songStore = useSongStore()
 const profileStore = useProfileStore()
 const authStore = useAuthStore()
 
-const selectedTab = ref('active')
-const isLoading = ref(false)
 const showUploadModal = ref(false)
 const isUploading = ref(false)
 const uploadProgress = ref(0)
@@ -206,23 +115,7 @@ const uploadForm = ref({
   file: null as File | null
 })
 
-const activeSongs = computed(() => songStore.userSongs)
-const deletedSongs = computed(() => songStore.deletedSongs)
-
-const loadSongs = async () => {
-  isLoading.value = true
-  try {
-    await songStore.fetchSongs()
-  } catch (error) {
-    console.error('Failed to load songs:', error)
-  } finally {
-    isLoading.value = false
-  }
-}
-
-const handleTabChange = (event: CustomEvent) => {
-  selectedTab.value = event.detail.value
-}
+// SongList handles its own tabs/filters/data
 
 const handleFileSelect = (event: Event) => {
   const target = event.target as HTMLInputElement
@@ -282,46 +175,12 @@ const handleUpload = async () => {
   }
 }
 
-const handlePlay = (song: any) => {
-  console.log('Playing song:', song)
-  // TODO: Implement audio playback
-}
-
-const restoreSong = async (songId: string) => {
-  try {
-    await songStore.restoreSong(songId)
-  } catch (error) {
-    console.error('Failed to restore song:', error)
-  }
-}
-
-const permanentlyDelete = async (songId: string) => {
-  try {
-    await songStore.permanentlyDeleteSong(songId)
-  } catch (error) {
-    console.error('Failed to delete song:', error)
-  }
-}
-
-const formatDate = (dateString: string | null) => {
-  if (!dateString) return 'Unknown'
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', { 
-    month: 'short', 
-    day: 'numeric',
-    year: 'numeric'
-  })
-}
-
 onMounted(async () => {
   // Fetch profile first to ensure it exists
   if (authStore.user) {
     console.log('[MySongs] Fetching profile for user:', authStore.user.id)
     await profileStore.fetchProfile()
   }
-  
-  // Then load songs
-  loadSongs()
 })
 </script>
 

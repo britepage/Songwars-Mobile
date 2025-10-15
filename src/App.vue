@@ -36,8 +36,8 @@ onMounted(async () => {
   
   // Configure status bar
   try {
-    await StatusBar.setStyle({ style: Style.Dark })
-    await StatusBar.setBackgroundColor({ color: '#000000' })
+    await StatusBar.setStyle({ style: themeStore.isDark ? Style.Dark : Style.Light })
+    await StatusBar.setBackgroundColor({ color: themeStore.isDark ? '#000000' : '#ffffff' })
   } catch (error) {
     // Status bar API not available in web
     console.log('Status bar not available')
@@ -50,6 +50,12 @@ onMounted(async () => {
 })
 
 // Watch for auth state changes and handle redirects
+watch(() => themeStore.isDark, async (isDark) => {
+  try {
+    await StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light })
+    await StatusBar.setBackgroundColor({ color: isDark ? '#000000' : '#ffffff' })
+  } catch {}
+})
 watch(() => authStore.user, (newUser) => {
   const currentPath = router.currentRoute.value.path
   console.log('[Auth Watcher] Path:', currentPath, 'user:', newUser?.id, 'isAuthenticated:', authStore.isAuthenticated)

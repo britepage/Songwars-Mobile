@@ -260,9 +260,6 @@ onMounted(async () => {
     console.log('[Dashboard] Fetching profile for user:', authStore.user.id)
     await profileStore.fetchProfile()
   }
-  
-  // Then load battle
-  loadBattle()
 })
 </script>
 

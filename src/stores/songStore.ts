@@ -42,6 +42,11 @@ export const useSongStore = defineStore('songs', () => {
   const currentSong = ref<Song | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
+  // Pagination
+  const pageSize = ref(20)
+  const lastLoadedIndex = ref(-1) // -1 means nothing loaded yet
+  const hasMoreSongs = ref(true)
+  const totalSongs = ref(0)
 
   // Getters
   const userSongs = computed(() => songs.value.filter(song => song.status === 'live'))
@@ -63,20 +68,64 @@ export const useSongStore = defineStore('songs', () => {
         throw new Error('No user ID provided')
       }
 
+      // Count total
+      const { count, error: countError } = await supabaseService.getClient()
+        .from('songs')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', targetUserId)
+        .is('deleted_at', null)
+
+      if (countError) throw countError
+      totalSongs.value = count || 0
+
+      // First page
       const { data, error: fetchError } = await supabaseService.getClient()
         .from('songs')
         .select('*')
         .eq('user_id', targetUserId)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
+        .range(0, pageSize.value - 1)
 
-      if (fetchError) {
-        throw fetchError
-      }
+      if (fetchError) throw fetchError
 
       songs.value = data || []
+      lastLoadedIndex.value = (songs.value.length || 0) - 1
+      hasMoreSongs.value = (lastLoadedIndex.value + 1) < totalSongs.value
       return { success: true, data }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch songs'
+      return { success: false, error: error.value }
+    } finally {
+      isLoading.value = false
+    }
+  }
+  
+  const loadMoreSongs = async (userId?: string) => {
+    try {
+      if (!hasMoreSongs.value) return { success: true, data: [] }
+      isLoading.value = true
+      error.value = null
+      const currentUser = await supabaseService.getCurrentUser()
+      const targetUserId = userId || currentUser?.id
+      if (!targetUserId) throw new Error('No user ID provided')
+      const start = lastLoadedIndex.value + 1
+      const end = start + pageSize.value - 1
+      const { data, error: fetchError } = await supabaseService.getClient()
+        .from('songs')
+        .select('*')
+        .eq('user_id', targetUserId)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .range(start, end)
+      if (fetchError) throw fetchError
+      const batch = data || []
+      songs.value = songs.value.concat(batch)
+      lastLoadedIndex.value = songs.value.length - 1
+      hasMoreSongs.value = (lastLoadedIndex.value + 1) < totalSongs.value
+      return { success: true, data: batch }
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to load more songs'
       return { success: false, error: error.value }
     } finally {
       isLoading.value = false
@@ -377,6 +426,9 @@ export const useSongStore = defineStore('songs', () => {
     songs.value = []
     currentSong.value = null
     error.value = null
+    lastLoadedIndex.value = -1
+    totalSongs.value = 0
+    hasMoreSongs.value = true
   }
 
   const clearError = () => {
@@ -392,6 +444,10 @@ export const useSongStore = defineStore('songs', () => {
     currentSong,
     isLoading,
     error,
+    pageSize,
+    lastLoadedIndex,
+    hasMoreSongs,
+    totalSongs,
     
     // Getters
     userSongs,
@@ -401,6 +457,7 @@ export const useSongStore = defineStore('songs', () => {
     // Actions
     fetchSongs,
     fetchUserSongs,
+    loadMoreSongs,
     fetchSongById,
     uploadSong,
     updateSong,

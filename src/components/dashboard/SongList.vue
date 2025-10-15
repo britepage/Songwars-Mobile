@@ -1,229 +1,577 @@
 <template>
-  <div class="song-list-container">
-    <div class="list-header" v-if="title">
-      <h3 class="list-title">{{ title }}</h3>
-      <ion-badge v-if="songs.length > 0" color="primary">{{ songs.length }}</ion-badge>
-    </div>
-    
-    <!-- Loading State -->
-    <div v-if="isLoading" class="loading-state">
-      <ion-spinner name="crescent" color="primary" />
-      <p>Loading songs...</p>
-    </div>
-    
-    <!-- Empty State -->
-    <div v-else-if="songs.length === 0" class="empty-state">
-      <ion-icon :icon="musicalNotes" class="empty-icon" />
-      <h4>{{ emptyMessage }}</h4>
-      <p>{{ emptySubtext }}</p>
-    </div>
-    
-    <!-- Songs List -->
-    <ion-list v-else class="songs-list">
-      <ion-item
-        v-for="song in songs"
-        :key="song.id"
-        button
-        @click="handleSongClick(song)"
-        class="song-item"
-      >
-        <ion-icon :icon="musicalNotes" slot="start" class="song-icon" />
-        
-        <ion-label>
-          <h3>{{ song.title }}</h3>
-          <p>{{ song.artist }}</p>
-          <p class="song-meta">
-            <span v-if="song.genre">{{ song.genre }}</span>
-            <span v-if="showStats"> • {{ song.likes || 0 }} likes</span>
-            <span v-if="showDate"> • {{ formatDate(song.created_at) }}</span>
-          </p>
-        </ion-label>
-        
-        <ion-button
-          slot="end"
-          fill="clear"
-          @click.stop="handlePlay(song)"
+  <div>
+    <!-- Tabs -->
+    <div class="mb-6 border-b">
+      <nav class="flex space-x-8" role="tablist" aria-label="Song management tabs">
+        <button
+          id="active-tab"
+          @click="activeTab = 'active'"
+          :class="['py-2 px-1 font-medium text-sm transition-colors', activeTab === 'active' ? 'border-b-2 border-solid border-[#ffd200] text-[#ffd200]' : 'border-b-2 border-solid border-transparent text-black hover:text-gray-600 hover:border-gray-300']"
+          role="tab"
+          :aria-selected="activeTab === 'active'"
+          aria-controls="active-songs-panel"
         >
-          <ion-icon :icon="play" />
-        </ion-button>
-      </ion-item>
-    </ion-list>
+          Active Songs ({{ totalActiveCount }})
+        </button>
+        <button
+          id="trash-tab"
+          @click="activeTab = 'trash'"
+          :class="['py-2 px-1 font-medium text-sm transition-colors', activeTab === 'trash' ? 'border-b-2 border-solid border-[#ffd200] text-[#ffd200]' : 'border-b-2 border-solid border-transparent text-black hover:text-gray-600 hover:border-gray-300']"
+          role="tab"
+          :aria-selected="activeTab === 'trash'"
+          aria-controls="trash-panel"
+        >
+          Trash ({{ trashedCount }})
+        </button>
+      </nav>
+    </div>
+
+    <!-- Filters/Search (Active only) -->
+    <div v-if="activeTab === 'active'" class="mb-6 flex items-center flex-wrap gap-3">
+      <div class="flex items-center space-x-2">
+        <label class="text-sm font-medium text-gray-300">Filter by Genre:</label>
+        <select v-model="selectedGenre" class="bg-gray-800 border border-gray-600 rounded-md px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#ffd200] focus:border-transparent">
+          <option value="">All Genres</option>
+          <option v-for="g in availableGenres" :key="g" :value="g">{{ g }}</option>
+        </select>
+        <button v-if="selectedGenre" @click="selectedGenre = ''" class="text-xs text-gray-400 hover:text-white transition-colors">Clear Filter</button>
+      </div>
+      <div class="flex items-center space-x-2 flex-1 max-w-md">
+        <div class="relative flex-1">
+          <input v-model="searchQuery" type="text" placeholder="Search by song title..." class="w-full bg-gray-800 border border-gray-600 rounded-md pl-10 pr-4 py-2 text-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ffd200] focus:border-transparent" />
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+          </div>
+        </div>
+        <button v-if="searchQuery" @click="searchQuery = ''" class="text-xs text-gray-400 hover:text-white transition-colors">Clear Search</button>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div v-if="songStore.loadingSongs" class="text-center py-8">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-[#ffd200] mx-auto"></div>
+      <p class="mt-4 text-gray-400">Loading songs...</p>
+    </div>
+
+    <!-- Active Songs Empty State -->
+    <div v-else-if="!songStore.loadingSongs && filteredActiveSongs.length === 0 && !selectedGenre && !searchQuery" class="text-center py-12">
+      <div class="text-gray-400 text-6xl mb-4">🎵</div>
+      <p class="text-gray-400 text-lg">No songs uploaded yet</p>
+      <p class="text-gray-500 mt-2">Your uploaded songs will appear here</p>
+    </div>
+
+    <!-- Active Songs Grid -->
+    <div v-if="activeTab==='active' && filteredActiveSongs.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div v-for="song in filteredActiveSongs" :key="song.id" class="border rounded-xl p-6 text-center flex flex-col justify-between hover:border-[#ffd200]/50 hover:!border-[#ffd200]/50 transition-all duration-300 border-gray-700 bg-gray-800 theme-bg-card theme-border-card">
+        <div>
+          <!-- Play Circle with Loading/Error States -->
+          <div class="mb-4">
+            <div class="w-16 h-16 mx-auto mb-2 relative cursor-pointer group" @click="audioErrors[song.id] ? retryAudio(song.id) : toggleSong(song)">
+              <!-- Loading State -->
+              <div v-if="audioLoading[song.id]" class="absolute inset-0 flex items-center justify-center z-20">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ffd200]"></div>
+              </div>
+              
+              <!-- Error State -->
+              <div v-else-if="audioErrors[song.id]" class="absolute inset-0 flex items-center justify-center z-20">
+                <svg class="w-8 h-8 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+              </div>
+              
+              <!-- Normal Play/Pause State -->
+              <div v-else class="absolute inset-0 flex items-center justify-center z-10">
+                <svg v-if="!isPlaying(song.id)" class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+                <svg v-else class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                </svg>
+              </div>
+              
+              <!-- Progress Ring -->
+              <svg class="w-[72px] h-[72px] absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 -rotate-90 z-0">
+                <circle
+                  cx="36"
+                  cy="36"
+                  r="34"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  fill="none"
+                  class="text-gray-800"
+                />
+                <circle
+                  cx="36"
+                  cy="36"
+                  r="34"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  fill="none"
+                  :stroke-dasharray="2 * Math.PI * 34"
+                  :stroke-dashoffset="getProgressOffset(song.id)"
+                  class="text-[#ffd200] transition-all duration-200"
+                />
+              </svg>
+              
+              <!-- Background Circle -->
+              <div class="absolute inset-0 theme-bg-card rounded-full group-hover:bg-[#ffd200] transition-colors z-0 border-2 play-inner"></div>
+            </div>
+            
+            <!-- Error Message -->
+            <div v-if="audioErrors[song.id]" class="text-xs text-red-500 text-center mb-2">
+              Audio failed to load
+            </div>
+            
+            <!-- Mobile Audio Info -->
+            <div v-if="isMobile && audioErrors[song.id]" class="text-xs text-gray-500 text-center">
+              Tap to retry
+            </div>
+          </div>
+          <!-- Title with Tag Indicator -->
+          <h3 class="font-semibold text-white text-lg mb-1 break-words flex items-center justify-center relative theme-text-primary">
+            {{ song.title }}
+            <!-- Tag indicator -->
+            <svg v-if="songTagCounts[song.id] > 0" 
+                 class="inline-block w-3 h-3 ml-1 text-[#ffd200] cursor-pointer" 
+                 fill="currentColor" 
+                 viewBox="0 0 24 24"
+                 @click="showTagTooltip(song.id)"
+                 :title="`Tags: ${songTagCounts[song.id]}`">
+              <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+            </svg>
+            <!-- Tag count tooltip -->
+            <div v-if="showTagTooltipId === song.id" 
+                 class="absolute top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg z-10 whitespace-nowrap">
+              Tags: {{ songTagCounts[song.id] }}
+              <div class="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-800 rotate-45"></div>
+            </div>
+          </h3>
+          <!-- Artist -->
+          <p class="text-gray-400 text-sm mb-4 italic">{{ song.artist }}</p>
+          <!-- Metrics Row -->
+          <p class="text-gray-300 text-sm flex items-center justify-center space-x-3">
+            <span>Total Votes: {{ (song.likes||0) + (song.dislikes||0) }}</span>
+            <span class="text-gray-500">|</span>
+            <span>Approval: 
+              <span :class="{
+                'text-[#ffd200]': getApprovalRateNumber(song.likes, song.dislikes) >= 70,
+                'text-red-500': getApprovalRateNumber(song.likes, song.dislikes) < 50,
+                'text-gray-400': getApprovalRateNumber(song.likes, song.dislikes) === 0
+              }">
+                {{ calcApproval(song.likes, song.dislikes) }}%
+              </span>
+            </span>
+          </p>
+          <!-- Upload Timestamp -->
+          <p class="text-xs text-gray-500 mt-3">Uploaded: {{ formatDate(song.created_at) }}</p>
+          <!-- Status Pills -->
+          <div class="mt-4 flex items-center justify-center space-x-1">
+            <span class="px-3 py-1.5 rounded-full text-xs font-medium"
+              :class="getStatusPill(song).class">
+              {{ getStatusPill(song).text }}
+            </span>
+            
+            <!-- Info icon for moderation statuses -->
+            <div v-if="song.status === 'under_review' || song.status === 'removed'" class="relative inline-block">
+              <button
+                @click.stop="toggleStatusInfo(song.id)"
+                class="inline-flex items-center justify-center w-5 h-5 text-gray-400 hover:text-white focus:outline-none cursor-pointer"
+                :aria-expanded="openInfoForId === song.id"
+                title="More info"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" />
+                </svg>
+              </button>
+              <!-- Popover content would go here -->
+            </div>
+          </div>
+          <div class="mt-4 flex justify-center space-x-2">
+            <button @click="openEdit(song)" class="px-3 py-2 bg-[#ffd200] text-black rounded-lg hover:bg-[#e6bd00] transition-colors text-sm font-medium">Edit</button>
+            <button @click="openDelete(song)" class="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Trash Empty State -->
+    <div v-if="activeTab==='trash'" class="text-center py-12">
+      <div class="text-gray-600 text-6xl mb-4">🗑️</div>
+      <p class="text-gray-500 text-lg">No trashed songs</p>
+      <p class="text-gray-600 mt-2">Deleted songs will appear here for 10 days</p>
+    </div>
+
+    <!-- Load More (Infinite Scroll) -->
+    <div v-if="activeTab==='active' && hasMoreActive" class="flex items-center justify-center py-4">
+      <button @click="loadMore" class="px-4 py-2 border border-gray-600 rounded-lg hover:bg-gray-700 text-gray-300 transition-colors">Load more</button>
+    </div>
     
-    <!-- Load More Button -->
-    <div v-if="hasMore && !isLoading" class="load-more-section">
-      <ion-button
-        fill="outline"
-        @click="handleLoadMore"
-      >
-        Load More
-      </ion-button>
+    <!-- Loading More Indicator -->
+    <div v-if="loadingMore" class="flex items-center justify-center space-x-2 text-gray-400 py-4">
+      <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-[#ffd200]"></div>
+      <span class="text-sm">Loading more songs...</span>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div v-if="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-gray-900 rounded-xl max-w-md w-full">
+        <div class="p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xl font-bold text-white">Delete Song</h3>
+            <button @click="showDeleteModal=false" class="text-gray-400 hover:text-white">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+          
+          <div class="mb-6">
+            <p class="text-gray-300 mb-4">
+              Are you sure you want to delete "<strong>{{ songToDelete?.title }}</strong>" by {{ songToDelete?.artist }}?
+            </p>
+            <div class="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
+              <p class="text-yellow-400 text-sm">
+                <strong>Note:</strong> This will move the song to trash where it will be automatically deleted after 10 days. 
+                You can restore it anytime before then.
+              </p>
+            </div>
+          </div>
+          
+          <div class="flex space-x-3">
+            <button
+              @click="confirmDelete"
+              :disabled="deleting"
+              class="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            >
+              {{ deleting ? 'Deleting...' : 'Move to Trash' }}
+            </button>
+            <button
+              @click="showDeleteModal=false"
+              class="px-4 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 font-medium"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hard Delete Modal -->
+    <div v-if="showHardDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-gray-900 rounded-xl max-w-md w-full">
+        <div class="p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xl font-bold text-white">Permanently Delete Song</h3>
+            <button @click="closeHardDelete" class="text-gray-400 hover:text-white">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+          
+          <div class="mb-6">
+            <p class="text-gray-300 mb-4">
+              Are you absolutely sure you want to <strong>permanently delete</strong> "<strong>{{ songToHardDelete?.title }}</strong>" by {{ songToHardDelete?.artist }}?
+            </p>
+            <div class="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+              <p class="text-red-400 text-sm">
+                <strong>Warning:</strong> This action cannot be undone. The song will be permanently removed from the system and all associated files will be deleted.
+              </p>
+            </div>
+            
+            <!-- Song name confirmation input -->
+            <div class="mt-4">
+              <label class="block text-sm font-medium text-gray-300 mb-2">
+                Type the song name to confirm: <strong>"{{ songToHardDelete?.title }}"</strong>
+              </label>
+              <input
+                v-model="songNameConfirmation"
+                type="text"
+                class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-white placeholder-gray-400"
+                placeholder="Enter song name to confirm"
+              />
+            </div>
+          </div>
+          
+          <div class="flex space-x-3">
+            <button
+              @click="confirmHardDelete"
+              :disabled="hardDeleting || !canConfirmHardDelete"
+              class="flex-1 px-4 py-3 bg-red-700 text-white rounded-lg hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            >
+              {{ hardDeleting ? 'Deleting...' : 'Delete Permanently' }}
+            </button>
+            <button
+              @click="closeHardDelete"
+              class="px-4 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 font-medium"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div v-if="showEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
+      <div class="bg-gray-900 rounded-xl max-w-4xl w-full max-h-[calc(100vh-8rem)] overflow-y-auto">
+        <div class="p-6 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xl font-bold text-white">Edit Song</h3>
+            <button @click="showEditModal=false" class="text-gray-400 hover:text-white">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-1">Title</label>
+              <input v-model="editForm.title" class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-[#ffd200] focus:border-transparent" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-1">Artist</label>
+              <input v-model="editForm.artist" class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-[#ffd200] focus:border-transparent" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-1">Genre</label>
+              <input v-model="editForm.genre" class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-[#ffd200] focus:border-transparent" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Clip Start (preview)</label>
+            <WaveformSelectorDual v-if="editForm.url" :audio-url="editForm.url" :initial-clip-start="editForm.clipStartTime || 0" @clip-changed="(t:number)=>editForm.clipStartTime=t" />
+          </div>
+          <div class="flex justify-end space-x-3 pt-2">
+            <button @click="showEditModal=false" class="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700">Cancel</button>
+            <button @click="saveEdit" class="px-4 py-2 rounded-lg bg-[#ffd200] text-black hover:bg-[#e6bd00]">Save</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import {
-  IonList,
-  IonItem,
-  IonLabel,
-  IonIcon,
-  IonButton,
-  IonSpinner,
-  IonBadge
-} from '@ionic/vue'
-import { musicalNotes, play } from 'ionicons/icons'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { useAudioPlayer } from '@/composables/useAudioPlayer'
+import { useSongStore } from '@/stores/songStore'
+import WaveformSelectorDual from '@/components/dashboard/WaveformSelectorDual.vue'
 
-interface Song {
-  id: string
-  title: string
-  artist: string
-  genre?: string | null
-  url?: string | null
-  likes?: number
-  created_at: string
-}
+const songStore = useSongStore()
+const audio = useAudioPlayer()
 
-interface Props {
-  songs: Song[]
-  title?: string
-  isLoading?: boolean
-  emptyMessage?: string
-  emptySubtext?: string
-  showStats?: boolean
-  showDate?: boolean
-  hasMore?: boolean
-}
+const activeTab = ref<'active'|'trash'>('active')
+const selectedGenre = ref('')
+const searchQuery = ref('')
 
-withDefaults(defineProps<Props>(), {
-  isLoading: false,
-  emptyMessage: 'No songs found',
-  emptySubtext: 'Songs will appear here once uploaded',
-  showStats: true,
-  showDate: true,
-  hasMore: false
+// Modal states
+const showDeleteModal = ref(false)
+const showHardDeleteModal = ref(false)
+const showEditModal = ref(false)
+const songToDelete = ref<any>(null)
+const songToHardDelete = ref<any>(null)
+const editingSongId = ref<string | null>(null)
+const songNameConfirmation = ref('')
+const deleting = ref(false)
+const hardDeleting = ref(false)
+const loadingMore = ref(false)
+
+// Tag and status states
+const songTagCounts = ref<{ [key: string]: number }>({})
+const showTagTooltipId = ref<string | null>(null)
+const openInfoForId = ref<string | null>(null)
+
+// Audio player states
+const audioLoading = ref<{ [key: string]: boolean }>({})
+const audioErrors = ref<{ [key: string]: string }>({})
+const isMobile = ref(false)
+
+// Edit form
+const editForm = ref<any>({ title: '', artist: '', genre: '', url: '', clipStartTime: 0 })
+
+const totalActiveCount = computed(() => songStore.songs?.length || 0)
+const trashedCount = computed(() => songStore.deletedSongs?.length || 0)
+
+const availableGenres = computed(() => {
+  const set = new Set<string>()
+  ;(songStore.songs || []).forEach(s => { if (s.genre) set.add(String(s.genre)) })
+  return Array.from(set).sort()
 })
 
-const emit = defineEmits<{
-  songClick: [song: Song]
-  play: [song: Song]
-  loadMore: []
-}>()
+const filteredActiveSongs = computed(() => {
+  let list = songStore.songs || []
+  if (selectedGenre.value) list = list.filter(s => String(s.genre) === selectedGenre.value)
+  if (searchQuery.value) list = list.filter(s => (s.title || '').toLowerCase().includes(searchQuery.value.toLowerCase()))
+  return list
+})
 
-const handleSongClick = (song: Song) => {
-  emit('songClick', song)
+const hasMoreActive = computed(() => (songStore as any).hasMoreSongs ?? false)
+
+const clearAllFilters = () => {
+  selectedGenre.value = ''
+  searchQuery.value = ''
 }
 
-const handlePlay = (song: Song) => {
-  emit('play', song)
+const calcApproval = (likes?: number|null, dislikes?: number|null) => {
+  const l = likes || 0, d = dislikes || 0
+  const t = l + d
+  if (!t) return 'N/A'
+  return Math.round((l / t) * 100)
 }
 
-const handleLoadMore = () => {
-  emit('loadMore')
+const getApprovalRateNumber = (likes?: number|null, dislikes?: number|null) => {
+  const l = likes || 0, d = dislikes || 0
+  const t = l + d
+  if (!t) return 0
+  return (l / t) * 100
 }
 
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+const getStatusPill = (song: any) => {
+  if (song.status === 'live' || song.is_active) {
+    return { text: 'Active', class: 'bg-green-400/10 text-green-400' }
+  }
+  if (song.status === 'under_review') {
+    return { text: 'Under Review', class: 'bg-yellow-400/10 text-yellow-400' }
+  }
+  if (song.status === 'removed') {
+    return { text: 'Removed', class: 'bg-red-500/10 text-red-500' }
+  }
+  return { text: 'Pending Final Score', class: 'bg-gray-400/10 text-gray-400' }
+}
+
+const getProgressOffset = (songId: string) => {
+  const circumference = 2 * Math.PI * 34
+  const progressValue = audio.progress.value[songId] || 0
+  return circumference * (1 - progressValue / 100)
+}
+
+const toggleSong = async (song: any) => {
+  if (!song?.url) return
   
-  if (diffDays === 0) return 'Today'
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays} days ago`
-  
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  await audio.togglePlay({
+    songId: song.id,
+    audioUrl: song.url,
+    preservePositionOnPause: true,
+    onEnded: () => { /* Handle song ended */ },
+    onProgress: (progress) => { /* Progress automatically updated */ },
+    onError: (error) => { 
+      console.error(`Audio error for song ${song.id}:`, error)
+      audioErrors.value[song.id] = error.message
+    },
+    onLoadingChange: (isLoading) => { 
+      audioLoading.value[song.id] = isLoading
+    }
+  })
 }
+
+const retryAudio = async (songId: string) => {
+  const song = songStore.songs.find(s => s.id === songId)
+  if (!song?.url) return
+  
+  audioErrors.value[songId] = ''
+  await toggleSong(song)
+}
+
+const showTagTooltip = (songId: string) => {
+  showTagTooltipId.value = showTagTooltipId.value === songId ? null : songId
+}
+
+const toggleStatusInfo = (songId: string) => {
+  openInfoForId.value = openInfoForId.value === songId ? null : songId
+}
+
+const openDelete = (song: any) => {
+  songToDelete.value = song
+  showDeleteModal.value = true
+}
+
+const openHardDelete = (song: any) => {
+  songToHardDelete.value = song
+  songNameConfirmation.value = ''
+  showHardDeleteModal.value = true
+}
+
+const closeHardDelete = () => {
+  showHardDeleteModal.value = false
+  songToHardDelete.value = null
+  songNameConfirmation.value = ''
+}
+
+const openEdit = (song: any) => {
+  editingSongId.value = song.id
+  editForm.value = { 
+    title: song.title, 
+    artist: song.artist, 
+    genre: song.genre, 
+    url: song.url || song.audioUrl, 
+    clipStartTime: song.clip_start_time || 0 
+  }
+  showEditModal.value = true
+}
+
+const saveEdit = async () => {
+  if (!editingSongId.value) return
+  try {
+    await songStore.updateSong?.(editingSongId.value, {
+      title: editForm.value.title,
+      artist: editForm.value.artist,
+      genre: editForm.value.genre,
+      clip_start_time: editForm.value.clipStartTime
+    })
+    showEditModal.value = false
+  } catch (e) {
+    console.error('save edit failed', e)
+  }
+}
+
+const canConfirmHardDelete = computed(() => songNameConfirmation.value === songToHardDelete.value?.title)
+
+const formatDate = (iso?: string|null) => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString()
+}
+
+// Simple debounce for search UX
+let searchTimeout: any
+watch(searchQuery, () => {
+  clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(() => {}, 300)
+})
+
+// Mobile detection
+onMounted(() => {
+  isMobile.value = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+  
+  // Initial fetch
+  try {
+    songStore.fetchSongs()
+  } catch (e) {
+    console.error('Failed to fetch songs', e)
+  }
+  
+  // Infinite scroll (200px threshold)
+  const onScroll = () => {
+    if (activeTab.value !== 'active' || !songStore.loadMoreSongs) return
+    const scrollTop = window.scrollY
+    const windowH = window.innerHeight
+    const docH = document.documentElement.scrollHeight
+    if (scrollTop + windowH >= docH - 200) {
+      loadMore()
+    }
+  }
+  window.addEventListener('scroll', onScroll)
+  cleanupFns.push(() => window.removeEventListener('scroll', onScroll))
+})
+
+// Optional: clean up listeners
+const cleanupFns: Array<() => void> = []
+onUnmounted(() => { cleanupFns.forEach(fn => fn()) })
+
+// Audio helpers
+const isPlaying = (id: string) => (audio.currentSongId?.value === id) && !!audio.isPlaying?.value
 </script>
 
 <style scoped>
-.song-list-container {
-  width: 100%;
-}
-
-.list-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.list-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
-}
-
-.loading-state,
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 1rem;
-  text-align: center;
-}
-
-.loading-state {
-  gap: 1rem;
-  color: var(--text-secondary);
-}
-
-.empty-icon {
-  font-size: 4rem;
-  color: var(--text-muted);
-  opacity: 0.5;
-  margin-bottom: 1rem;
-}
-
-.empty-state h4 {
-  color: var(--text-primary);
-  margin: 0 0 0.5rem 0;
-}
-
-.empty-state p {
-  color: var(--text-secondary);
-  margin: 0;
-}
-
-.songs-list {
-  background: transparent;
-}
-
-.song-item {
-  --background: var(--card-bg);
-  --border-color: var(--border-color);
-  margin-bottom: 0.5rem;
-}
-
-.song-icon {
-  color: var(--ion-color-primary);
-  font-size: 1.5rem;
-}
-
-.song-item h3 {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 0.25rem 0;
-}
-
-.song-item p {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  margin: 0;
-}
-
-.song-meta {
-  font-size: 0.75rem !important;
-  color: var(--text-muted) !important;
-  margin-top: 0.25rem !important;
-}
-
-.load-more-section {
-  display: flex;
-  justify-content: center;
-  padding: 1rem;
-}
 </style>
