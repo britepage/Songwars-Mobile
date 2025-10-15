@@ -1,91 +1,106 @@
 <template>
-  <div class="waveform-selector">
+  <div class="waveform-selector-container bg-black rounded-lg p-4">
     <!-- Header -->
     <div class="flex items-center justify-between mb-4">
-      <h3 class="text-lg font-semibold theme-text-primary">Select 30-Second Clip</h3>
-      <div class="flex items-center space-x-2">
-        <span class="text-sm theme-text-secondary">{{ formatTime(clipStart) }} - {{ formatTime(clipStart + 30) }}</span>
-        <button 
-          @click="togglePlayback"
-          :disabled="!audioBuffer || isProcessing"
-          class="p-2 rounded-full bg-yellow-400 hover:bg-yellow-500 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-        >
-          <svg v-if="!isPlaying" class="w-4 h-4 text-black" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M8 5v14l11-7z"/>
-          </svg>
-          <svg v-else class="w-4 h-4 text-black" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-          </svg>
-        </button>
-      </div>
+      <h3 class="text-base font-medium text-white flex items-center">
+        <svg class="w-4 h-4 mr-2 text-[#ffd200]" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+        </svg>
+        Select 30-Second Clip
+      </h3>
     </div>
 
-    <!-- Waveform Canvas -->
-    <div class="relative bg-gray-100 rounded-lg p-4 mb-4">
-      <canvas 
-        ref="waveformCanvas"
-        :width="canvasWidth"
-        :height="canvasHeight"
-        class="w-full border border-gray-300 rounded cursor-pointer"
-        @click="handleCanvasClick"
-        @mousemove="handleMouseMove"
-        @mousedown="handleMouseDown"
-        @mouseup="handleMouseUp"
-        @mouseleave="handleMouseLeave"
-      ></canvas>
+    <!-- Selection Info -->
+    <div v-if="!loading && duration > 0" class="mb-4 text-sm text-gray-300">
+      <span v-if="duration >= 30">
+        Selected: <span class="text-[#ffd200] font-medium">{{ formatTime(selectedStart) }} - {{ formatTime(selectedStart + 30) }}</span>
+      </span>
+      <span v-else>
+        Full Song: <span class="text-[#ffd200] font-medium">{{ formatTime(0) }} - {{ formatTime(duration) }}</span>
+      </span>
+      <span class="text-gray-400 ml-2">
+        (Total: {{ formatTime(duration) }})
+      </span>
+    </div>
+
+    <!-- Waveform Container -->
+    <div ref="waveformContainer" class="waveform-container relative h-20 mb-4 rounded-lg overflow-hidden bg-gray-900">
+      <!-- Base Gray Waveform (z-0) -->
+      <div ref="baseWaveform" class="absolute inset-0 z-0"></div>
       
-      <!-- Selection Overlay -->
+      <!-- Yellow Waveform with CSS Mask (z-10) -->
       <div 
-        v-if="selectionWidth > 0"
-        class="absolute top-4 bottom-4 bg-yellow-400 bg-opacity-30 border-2 border-yellow-500 rounded"
-        :style="{
-          left: `${selectionLeft}px`,
-          width: `${selectionWidth}px`,
-          pointerEvents: 'none'
-        }"
+        ref="yellowWaveform" 
+        class="absolute inset-0 z-10"
+        :style="yellowMaskStyle"
       ></div>
-
-      <!-- Time Labels -->
-      <div class="flex justify-between mt-2 text-xs theme-text-secondary">
-        <span>{{ formatTime(0) }}</span>
-        <span>{{ formatTime(duration) }}</span>
-      </div>
-    </div>
-
-    <!-- Clip Controls -->
-    <div class="flex items-center justify-between">
-      <div class="flex items-center space-x-3">
-        <button 
-          @click="moveClipLeft"
-          :disabled="clipStart <= 0 || isProcessing"
-          class="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed rounded transition-colors"
-        >
-          ← Move Left
-        </button>
-        <button 
-          @click="moveClipRight"
-          :disabled="clipStart + 30 >= duration || isProcessing"
-          class="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed rounded transition-colors"
-        >
-          Move Right →
-        </button>
-      </div>
       
-      <div class="text-sm theme-text-secondary">
-        Clip Duration: {{ Math.min(30, duration - clipStart).toFixed(1) }}s
+      <!-- Draggable Selection Frame (z-20) -->
+      <div 
+        v-if="duration >= 30"
+        ref="selectionFrame"
+        class="absolute selection-frame z-20"
+        :style="selectionFrameStyle"
+        @mousedown="startDrag"
+        @touchstart="startDrag"
+      ></div>
+      
+      <!-- Loading Spinner (z-30) -->
+      <div v-if="loading" class="absolute inset-0 z-30 flex items-center justify-center bg-black/50">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ffd200]"></div>
       </div>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="isProcessing" class="mt-4 text-center">
-      <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-500 mx-auto mb-2"></div>
-      <p class="text-sm theme-text-secondary">{{ processingMessage }}</p>
+    <!-- Control Buttons -->
+    <div class="flex items-center space-x-2">
+      <!-- Preview Button (shown when not playing) -->
+      <button
+        v-if="!isPlaying"
+        @click="previewSelection"
+        class="px-4 py-2 bg-[#ffd200] text-black rounded-lg hover:bg-[#e6bd00] transition-colors text-sm font-medium flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+        type="button"
+        :disabled="loading || !baseWavesurfer"
+      >
+        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M8 5v14l11-7z"/>
+        </svg>
+        {{ duration >= 30 ? 'Preview Selection' : 'Preview Song' }}
+      </button>
+
+      <!-- Stop Button (shown when playing) -->
+      <button
+        v-if="isPlaying"
+        @click="stopPlayback"
+        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium flex items-center"
+        type="button"
+      >
+        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+        </svg>
+        Stop
+      </button>
+
+      <!-- Reset Button (only for songs >= 30s) -->
+      <button
+        v-if="duration >= 30"
+        @click="resetToStart"
+        class="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+        type="button"
+        :disabled="loading || !baseWavesurfer || isPlaying"
+      >
+        Reset to Start
+      </button>
+    </div>
+
+    <!-- Tip -->
+    <div v-if="duration >= 30" class="mt-3 text-xs text-gray-400 bg-gray-800/50 rounded p-2">
+      💡 Drag the white frame to select your 30-second clip
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
 
 // Props
 interface Props {
@@ -102,277 +117,455 @@ const emit = defineEmits<{
   clipChanged: [clipStart: number]
 }>()
 
-// Reactive state
-const waveformCanvas = ref<HTMLCanvasElement>()
-const audioBuffer = ref<AudioBuffer | null>(null)
-const audioContext = ref<AudioContext | null>(null)
-const audioSource = ref<AudioBufferSourceNode | null>(null)
-const gainNode = ref<GainNode | null>(null)
+// DOM refs
+const waveformContainer = ref<HTMLElement | null>(null)
+const baseWaveform = ref<HTMLElement | null>(null)
+const yellowWaveform = ref<HTMLElement | null>(null)
+const selectionFrame = ref<HTMLElement | null>(null)
 
+// Component state
+const loading = ref(true)
+const selectedStart = ref(props.initialClipStart || 0)
 const duration = ref(0)
-const clipStart = ref(props.initialClipStart)
 const isPlaying = ref(false)
-const isProcessing = ref(false)
-const processingMessage = ref('')
-
-// Canvas dimensions
-const canvasWidth = ref(800)
-const canvasHeight = ref(120)
-
-// Selection state
 const isDragging = ref(false)
-const dragStartX = ref(0)
-const selectionLeft = ref(0)
-const selectionWidth = ref(0)
 
-// Initialize audio context and load audio file
+// Audio preview
+const previewAudioRef = ref<HTMLAudioElement | null>(null)
+
+// Timeout management
+const timeoutIds: { [key: string]: NodeJS.Timeout } = {}
+
+// WaveSurfer instances
+let baseWavesurfer: any = null
+let yellowWavesurfer: any = null
+
+// Utility functions
+const formatTime = (seconds: number): string => {
+  const m = Math.floor(seconds / 60)
+  const s = Math.floor(seconds % 60)
+  return `${m}:${s.toString().padStart(2, '0')}`
+}
+
+const clearTimeoutForPreview = (previewId: string) => {
+  if (timeoutIds[previewId]) {
+    clearTimeout(timeoutIds[previewId])
+    delete timeoutIds[previewId]
+  }
+}
+
+// CSS Masking for yellow waveform
+const yellowMaskStyle = computed(() => {
+  if (duration.value === 0) {
+    return { 
+      webkitMask: 'linear-gradient(to right, transparent 100%, transparent 100%)',
+      mask: 'linear-gradient(to right, transparent 100%, transparent 100%)'
+    }
+  }
+  
+  if (duration.value < 30) {
+    // Show entire yellow waveform for short songs
+    return {
+      webkitMask: 'linear-gradient(to right, black 0%, black 100%)',
+      mask: 'linear-gradient(to right, black 0%, black 100%)'
+    }
+  } else {
+    // Mask yellow waveform to only show in selected region
+    const durationValue = duration.value
+    const startValue = selectedStart.value
+    const startPercent = (startValue / durationValue) * 100
+    const endPercent = ((startValue + 30) / durationValue) * 100
+    
+    return {
+      webkitMask: `linear-gradient(to right, transparent 0%, transparent ${startPercent}%, black ${startPercent}%, black ${endPercent}%, transparent ${endPercent}%, transparent 100%)`,
+      mask: `linear-gradient(to right, transparent 0%, transparent ${startPercent}%, black ${startPercent}%, black ${endPercent}%, transparent ${endPercent}%, transparent 100%)`
+    }
+  }
+})
+
+// Selection frame positioning
+const selectionFrameStyle = computed(() => {
+  if (duration.value === 0 || duration.value < 30) {
+    return { display: 'none' }
+  }
+  
+  const startPercent = (selectedStart.value / duration.value) * 100
+  const widthPercent = (30 / duration.value) * 100
+  
+  return {
+    left: `${startPercent}%`,
+    width: `${widthPercent}%`,
+    height: '80px',
+    top: '0px'
+  }
+})
+
+// Update yellow mask directly (for immediate visual feedback during drag)
+const updateYellowClippingDirect = (startTime: number) => {
+  if (!yellowWaveform.value || duration.value === 0) return
+  
+  if (duration.value < 30) {
+    yellowWaveform.value.style.webkitMask = 'linear-gradient(to right, black 0%, black 100%)'
+    yellowWaveform.value.style.mask = 'linear-gradient(to right, black 0%, black 100%)'
+  } else {
+    const durationValue = duration.value
+    const startPercent = (startTime / durationValue) * 100
+    const endPercent = ((startTime + 30) / durationValue) * 100
+    
+    const maskValue = `linear-gradient(to right, transparent 0%, transparent ${startPercent}%, black ${startPercent}%, black ${endPercent}%, transparent ${endPercent}%, transparent 100%)`
+    
+    yellowWaveform.value.style.webkitMask = maskValue
+    yellowWaveform.value.style.mask = maskValue
+  }
+}
+
+// Initialize WaveSurfer
 onMounted(async () => {
   try {
-    isProcessing.value = true
-    processingMessage.value = 'Loading audio file...'
+    loading.value = true
     
-    audioContext.value = new (window.AudioContext || (window as any).webkitAudioContext)()
-    
-    // Load audio file
-    const response = await fetch(props.audioUrl)
-    const arrayBuffer = await response.arrayBuffer()
-    audioBuffer.value = await audioContext.value.decodeAudioData(arrayBuffer)
-    
-    duration.value = audioBuffer.value.duration
-    clipStart.value = Math.min(props.initialClipStart, duration.value - 30)
-    
-    processingMessage.value = 'Rendering waveform...'
+    // Wait for DOM to be ready
     await nextTick()
-    await renderWaveform()
     
-    isProcessing.value = false
-  } catch (error) {
-    console.error('Error loading audio:', error)
-    isProcessing.value = false
-  }
-})
-
-// Clean up audio context
-onUnmounted(() => {
-  if (audioSource.value) {
-    audioSource.value.stop()
-  }
-  if (audioContext.value) {
-    audioContext.value.close()
-  }
-})
-
-// Watch for clip start changes
-watch(clipStart, (newValue) => {
-  updateSelectionDisplay()
-  emit('clipChanged', newValue)
-})
-
-// Render waveform visualization
-const renderWaveform = async () => {
-  if (!waveformCanvas.value || !audioBuffer.value) return
-  
-  const canvas = waveformCanvas.value
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-  
-  // Set canvas size
-  canvasWidth.value = canvas.offsetWidth
-  canvas.height = canvasHeight.value
-  canvas.width = canvasWidth.value
-  
-  // Clear canvas
-  ctx.clearRect(0, 0, canvas.width, canvas.height)
-  
-  // Get audio data
-  const channelData = audioBuffer.value.getChannelData(0)
-  const samplesPerPixel = channelData.length / canvas.width
-  
-  // Draw waveform
-  ctx.strokeStyle = '#374151'
-  ctx.lineWidth = 1
-  ctx.beginPath()
-  
-  for (let x = 0; x < canvas.width; x++) {
-    const start = Math.floor(x * samplesPerPixel)
-    const end = Math.floor((x + 1) * samplesPerPixel)
+    if (!baseWaveform.value || !yellowWaveform.value) {
+      console.error('Waveform container refs not available')
+      return
+    }
     
-    let max = 0
-    let min = 0
+    // Dynamic import of WaveSurfer
+    console.log('🔄 Loading WaveSurfer.js...')
+    const WaveSurfer = (await import('wavesurfer.js')).default
     
-    for (let i = start; i < end; i++) {
-      if (i < channelData.length) {
-        max = Math.max(max, channelData[i])
-        min = Math.min(min, channelData[i])
+    // Create base gray waveform
+    console.log('🔄 Creating base waveform...')
+    baseWavesurfer = WaveSurfer.create({
+      container: baseWaveform.value,
+      waveColor: '#4B5563',      // Gray-600 bars
+      progressColor: '#6B7280',  // Gray-500 for progress
+      cursorColor: 'transparent',
+      barWidth: 2,
+      barGap: 1,
+      height: 80,
+      normalize: true,
+      interact: false // Disable interaction on base layer
+    })
+    
+    // Create yellow waveform
+    console.log('🔄 Creating yellow waveform...')
+    yellowWavesurfer = WaveSurfer.create({
+      container: yellowWaveform.value,
+      waveColor: '#ffd200',      // Bright yellow bars
+      progressColor: '#ffed4e',  // Brighter yellow for progress
+      cursorColor: 'transparent',
+      barWidth: 2,
+      barGap: 1,
+      height: 80,
+      normalize: true,
+      interact: false // Disable interaction on yellow layer
+    })
+    
+    // Set up ready event listeners
+    let baseReady = false
+    let yellowReady = false
+    
+    const checkBothReady = () => {
+      if (baseReady && yellowReady) {
+        duration.value = baseWavesurfer.getDuration()
+        
+        // Ensure clip start is valid
+        if (duration.value < 30) {
+          selectedStart.value = 0
+        } else {
+          selectedStart.value = Math.min(props.initialClipStart, duration.value - 30)
+        }
+        
+        loading.value = false
+        console.log('✅ Waveforms loaded successfully. Duration:', duration.value)
+        
+        // Update yellow clipping after initialization
+        updateYellowClippingDirect(selectedStart.value)
       }
     }
     
-    const y1 = (1 - max) * (canvas.height / 2)
-    const y2 = (1 - min) * (canvas.height / 2)
+    baseWavesurfer.on('ready', () => {
+      console.log('✅ Base waveform ready')
+      baseReady = true
+      checkBothReady()
+    })
     
-    if (x === 0) {
-      ctx.moveTo(x, y1)
-    } else {
-      ctx.lineTo(x, y1)
-    }
+    yellowWavesurfer.on('ready', () => {
+      console.log('✅ Yellow waveform ready')
+      yellowReady = true
+      checkBothReady()
+    })
     
-    ctx.moveTo(x, y2)
-    ctx.lineTo(x, y2)
+    // Handle errors
+    baseWavesurfer.on('error', (error: any) => {
+      console.error('❌ Base waveform error:', error)
+      loading.value = false
+    })
+    
+    yellowWavesurfer.on('error', (error: any) => {
+      console.error('❌ Yellow waveform error:', error)
+      loading.value = false
+    })
+    
+    // Load audio into both instances
+    console.log('🔄 Loading audio URL:', props.audioUrl)
+    await Promise.all([
+      baseWavesurfer.load(props.audioUrl),
+      yellowWavesurfer.load(props.audioUrl)
+    ])
+    
+  } catch (error) {
+    console.error('❌ Error initializing waveforms:', error)
+    loading.value = false
   }
-  
-  ctx.stroke()
-  
-  // Update selection display
-  updateSelectionDisplay()
-}
+})
 
-// Update selection overlay position and size
-const updateSelectionDisplay = () => {
-  if (!waveformCanvas.value || !duration.value) return
+// Draggable frame system
+const startDrag = (event: MouseEvent | TouchEvent) => {
+  if (duration.value < 30 || !waveformContainer.value) return
   
-  const canvas = waveformCanvas.value
-  const pixelsPerSecond = canvas.width / duration.value
-  
-  selectionLeft.value = clipStart.value * pixelsPerSecond
-  selectionWidth.value = Math.min(30, duration.value - clipStart.value) * pixelsPerSecond
-}
-
-// Canvas interaction handlers
-const handleCanvasClick = (event: MouseEvent) => {
-  if (!waveformCanvas.value || !duration.value) return
-  
-  const canvas = waveformCanvas.value
-  const rect = canvas.getBoundingClientRect()
-  const x = event.clientX - rect.left
-  const pixelsPerSecond = canvas.width / duration.value
-  
-  // Calculate new clip start (center the 30-second window)
-  let newClipStart = (x / pixelsPerSecond) - 15
-  
-  // Clamp to valid range
-  newClipStart = Math.max(0, Math.min(newClipStart, duration.value - 30))
-  
-  clipStart.value = newClipStart
-}
-
-const handleMouseMove = (event: MouseEvent) => {
-  if (!isDragging.value) return
-  
-  // Handle dragging logic here if needed
-  // For now, just update cursor
-  if (waveformCanvas.value) {
-    waveformCanvas.value.style.cursor = 'grabbing'
-  }
-}
-
-const handleMouseDown = (event: MouseEvent) => {
+  event.preventDefault()
+  event.stopPropagation()
   isDragging.value = true
-  dragStartX.value = event.clientX
   
-  if (waveformCanvas.value) {
-    waveformCanvas.value.style.cursor = 'grabbing'
+  // Disable CSS transitions during drag for immediate response
+  if (selectionFrame.value) {
+    selectionFrame.value.style.transition = 'none'
   }
-}
-
-const handleMouseUp = () => {
-  isDragging.value = false
   
-  if (waveformCanvas.value) {
-    waveformCanvas.value.style.cursor = 'pointer'
-  }
-}
-
-const handleMouseLeave = () => {
-  isDragging.value = false
+  // Cache container rect to avoid repeated getBoundingClientRect calls
+  const containerRect = waveformContainer.value.getBoundingClientRect()
+  const containerWidth = containerRect.width
+  const maxStart = duration.value - 30
   
-  if (waveformCanvas.value) {
-    waveformCanvas.value.style.cursor = 'pointer'
-  }
-}
-
-// Move clip controls
-const moveClipLeft = () => {
-  const newClipStart = Math.max(0, clipStart.value - 5)
-  clipStart.value = newClipStart
-}
-
-const moveClipRight = () => {
-  const newClipStart = Math.min(duration.value - 30, clipStart.value + 5)
-  clipStart.value = newClipStart
-}
-
-// Audio playback
-const togglePlayback = async () => {
-  if (!audioBuffer.value || !audioContext.value) return
+  // Determine if this is a touch or mouse event
+  const isTouch = event.type.startsWith('touch')
   
-  if (isPlaying.value) {
-    stopPlayback()
-  } else {
-    await startPlayback()
-  }
-}
-
-const startPlayback = async () => {
-  if (!audioBuffer.value || !audioContext.value) return
-  
-  try {
-    // Resume audio context if suspended
-    if (audioContext.value.state === 'suspended') {
-      await audioContext.value.resume()
+  const handleMove = (e: MouseEvent | TouchEvent) => {
+    if (!isDragging.value) return
+    
+    // Get client coordinates from either mouse or touch event
+    let clientX: number
+    if (isTouch && 'touches' in e) {
+      clientX = e.touches[0].clientX
+    } else if ('clientX' in e) {
+      clientX = e.clientX
+    } else {
+      return
     }
     
-    // Create source and gain nodes
-    audioSource.value = audioContext.value.createBufferSource()
-    gainNode.value = audioContext.value.createGain()
+    // Calculate relative position within container
+    const relativeX = clientX - containerRect.left
+    const relativePercent = relativeX / containerWidth
     
-    audioSource.value.buffer = audioBuffer.value
-    audioSource.value.connect(gainNode.value)
-    gainNode.value.connect(audioContext.value.destination)
+    // Calculate new start time based on position
+    const newStartTime = relativePercent * duration.value
     
-    // Set playback start time
-    audioSource.value.start(0, clipStart.value, 30)
+    // Constrain to valid range (can't go past duration - 30)
+    const constrainedStart = Math.max(0, Math.min(newStartTime, maxStart))
     
-    isPlaying.value = true
+    // Update reactive values
+    selectedStart.value = constrainedStart
+    emit('clipChanged', constrainedStart)
     
-    // Stop after 30 seconds
-    setTimeout(() => {
-      if (isPlaying.value) {
-        stopPlayback()
-      }
-    }, 30000)
+    // Update yellow clipping immediately
+    updateYellowClippingDirect(constrainedStart)
     
-  } catch (error) {
-    console.error('Error starting playback:', error)
+    // Audio scrubbing during drag (if playing)
+    if (isPlaying.value && previewAudioRef.value) {
+      previewAudioRef.value.currentTime = constrainedStart
+    }
+  }
+  
+  const handleEnd = () => {
+    isDragging.value = false
+    
+    // Re-enable CSS transitions
+    if (selectionFrame.value) {
+      selectionFrame.value.style.transition = ''
+    }
+    
+    // Remove event listeners
+    if (isTouch) {
+      document.removeEventListener('touchmove', handleMove)
+      document.removeEventListener('touchend', handleEnd)
+    } else {
+      document.removeEventListener('mousemove', handleMove)
+      document.removeEventListener('mouseup', handleEnd)
+    }
+    
+    updateYellowClippingDirect(selectedStart.value)
+  }
+  
+  // Add event listeners
+  if (isTouch) {
+    document.addEventListener('touchmove', handleMove, { passive: false })
+    document.addEventListener('touchend', handleEnd)
+  } else {
+    document.addEventListener('mousemove', handleMove)
+    document.addEventListener('mouseup', handleEnd)
+  }
+}
+
+// Audio playback functions
+const previewSelection = () => {
+  if (!props.audioUrl) return
+
+  // Stop any existing preview
+  if (previewAudioRef.value) {
+    previewAudioRef.value.pause()
+    previewAudioRef.value.currentTime = 0
+  }
+  
+  // Clear any existing timeout
+  clearTimeoutForPreview('preview')
+
+  // Create clean audio element
+  const previewAudio = new Audio(props.audioUrl)
+  previewAudio.preload = 'metadata'
+  previewAudioRef.value = previewAudio
+  
+  // Set the start time for the clip
+  if (duration.value >= 30) {
+    previewAudio.currentTime = selectedStart.value
+  } else {
+    previewAudio.currentTime = 0
+  }
+
+  // Update playing state
+  isPlaying.value = true
+
+  // Play with promise handling
+  previewAudio.play().then(() => {
+    console.log('▶️ Audio started playing successfully')
+  }).catch((error) => {
+    console.error('❌ Failed to play audio:', error)
+    isPlaying.value = false
+    previewAudioRef.value = null
+  })
+
+  // Stop after appropriate duration
+  const previewDuration = duration.value >= 30 ? 30000 : (duration.value * 1000)
+
+  // Set timeout
+  timeoutIds['preview'] = setTimeout(() => {
+    console.log('⏹️ Auto-stopping preview after', previewDuration, 'ms')
+    if (previewAudioRef.value === previewAudio) {
+      previewAudio.pause()
+      previewAudio.currentTime = 0
+      isPlaying.value = false
+      previewAudioRef.value = null
+    }
+    delete timeoutIds['preview']
+  }, previewDuration)
+  
+  // Cleanup on ended
+  previewAudio.onended = () => {
+    if (previewAudioRef.value === previewAudio) {
+      isPlaying.value = false
+      previewAudioRef.value = null
+    }
   }
 }
 
 const stopPlayback = () => {
-  if (audioSource.value) {
-    try {
-      audioSource.value.stop()
-    } catch (error) {
-      // Source might already be stopped
-    }
-    audioSource.value = null
+  // Clear timeout
+  clearTimeoutForPreview('preview')
+  
+  // Stop audio
+  if (previewAudioRef.value) {
+    previewAudioRef.value.pause()
+    previewAudioRef.value.currentTime = 0
+    previewAudioRef.value = null
   }
   
   isPlaying.value = false
+  
+  // Reset waveform position
+  if (duration.value >= 30) {
+    baseWavesurfer?.setTime(selectedStart.value)
+    yellowWavesurfer?.setTime(selectedStart.value)
+  } else {
+    baseWavesurfer?.setTime(0)
+    yellowWavesurfer?.setTime(0)
+  }
 }
 
-// Utility functions
-const formatTime = (seconds: number): string => {
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${mins}:${secs.toString().padStart(2, '0')}`
+const resetToStart = () => {
+  if (duration.value < 30) return
+  
+  selectedStart.value = 0
+  emit('clipChanged', 0)
+  
+  updateYellowClippingDirect(0)
 }
+
+// Watch for audio URL changes
+watch(() => props.audioUrl, async (newUrl) => {
+  if (newUrl && baseWavesurfer && yellowWavesurfer) {
+    loading.value = true
+    selectedStart.value = 0
+    
+    await Promise.all([
+      baseWavesurfer.load(newUrl),
+      yellowWavesurfer.load(newUrl)
+    ])
+  }
+})
+
+// Cleanup on unmount
+onUnmounted(() => {
+  // Clear all timeouts
+  Object.keys(timeoutIds).forEach(previewId => {
+    clearTimeoutForPreview(previewId)
+  })
+  
+  // Stop and cleanup audio
+  if (previewAudioRef.value) {
+    previewAudioRef.value.pause()
+    previewAudioRef.value.currentTime = 0
+    previewAudioRef.value = null
+  }
+  
+  // Destroy WaveSurfer instances
+  if (baseWavesurfer) {
+    baseWavesurfer.destroy()
+  }
+  if (yellowWavesurfer) {
+    yellowWavesurfer.destroy()
+  }
+})
 </script>
 
 <style scoped>
-.waveform-selector {
+.waveform-selector-container {
   @apply space-y-4;
 }
 
-canvas {
-  image-rendering: pixelated;
+.waveform-container {
+  position: relative;
+}
+
+.selection-frame {
+  border: 5px solid #ffffff;
+  border-radius: 8px;
+  background: transparent;
+  cursor: grab;
+  box-shadow: 0 0 0 2px #000000, 0 2px 12px rgba(255, 210, 0, 0.6);
+  transition: all 0.2s ease;
+  pointer-events: all;
+}
+
+.selection-frame:active {
+  cursor: grabbing;
+  transform: scale(1.02);
+  box-shadow: 0 0 0 2px #000000, 0 4px 16px rgba(255, 210, 0, 0.8);
+}
+
+.selection-frame:hover {
+  box-shadow: 0 0 0 2px #000000, 0 2px 16px rgba(255, 210, 0, 0.7);
 }
 </style>
