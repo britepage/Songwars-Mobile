@@ -126,7 +126,7 @@
         
         <!-- Section 3: Waveform Clip Selection -->
         <div v-if="uploadStore.audioPreviewUrl" class="rounded-2xl p-6 border theme-bg-card theme-border-card">
-          <h3 class="text-lg font-semibold theme-text-primary mb-4">✂️ Select 30-Second Clip</h3>
+          
           <WaveformSelectorDual
             :audio-url="uploadStore.audioPreviewUrl"
             :initial-clip-start="uploadStore.clipStartTime"
@@ -228,11 +228,12 @@
           :disabled="!uploadStore.canUpload || uploadStore.uploading || uploadStore.isGeneratingFingerprint"
           :class="[
             'w-full py-4 rounded-lg font-bold text-lg transition-all',
-            uploadStore.isSuccess ? 'bg-green-500 text-white' :
-            uploadStore.isDuplicate ? 'bg-gray-400 text-gray-700 cursor-not-allowed' :
-            uploadStore.uploading || uploadStore.isGeneratingFingerprint ? 'bg-blue-500 text-white' :
-            uploadStore.canUpload ? 'bg-[#ffd200] text-black hover:bg-yellow-400' :
-            'bg-gray-300 text-gray-500 cursor-not-allowed'
+            uploadStore.isSuccess ? 'bg-green-500 text-white shadow-lg shadow-black/20' :
+            uploadStore.isDuplicate ? 'bg-transparent text-black cursor-not-allowed' :
+            uploadStore.uploading || uploadStore.isGeneratingFingerprint
+              ? 'bg-yellow-50 text-black border border-yellow-200 shadow-none' :
+            uploadStore.canUpload ? 'bg-[#ffd200] text-black hover:bg-yellow-400 shadow-lg shadow-black/20' :
+            'bg-transparent text-black cursor-not-allowed'
           ]"
         >
           <span v-if="uploadStore.isSuccess" class="flex items-center justify-center">
@@ -247,15 +248,26 @@
             </svg>
             Duplicate Detected
           </span>
-          <span v-else-if="uploadStore.isGeneratingFingerprint">
+          <span v-else-if="uploadStore.isGeneratingFingerprint" class="flex items-center justify-center">
+            <svg class="w-5 h-5 mr-2 animate-spin text-gray-600" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" opacity=".25"/><path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" stroke-width="4" opacity=".9"/></svg>
             Verifying File...
           </span>
-          <span v-else-if="uploadStore.uploading">
+          <span v-else-if="uploadStore.uploading" class="flex items-center justify-center">
+            <svg class="w-5 h-5 mr-2 animate-spin text-gray-600" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" opacity=".25"/><path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" stroke-width="4" opacity=".9"/></svg>
             {{ uploadStore.conversionStage === 'decoding' ? 'Decoding...' : 
                uploadStore.conversionStage === 'encoding' ? 'Converting...' : 
                'Uploading...' }}
           </span>
-          <span v-else>
+          <span v-else-if="!uploadStore.canUpload" class="flex items-center justify-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
+            </svg>
+            Upload Song
+          </span>
+          <span v-else class="flex items-center justify-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
+            </svg>
             Upload Song
           </span>
         </button>

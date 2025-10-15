@@ -1,30 +1,18 @@
 <template>
-  <div class="waveform-selector-container bg-black rounded-lg p-4">
+  <div class="waveform-selector-container bg-white rounded-lg p-4">
     <!-- Header -->
     <div class="flex items-center justify-between mb-4">
-      <h3 class="text-base font-medium text-white flex items-center">
-        <svg class="w-4 h-4 mr-2 text-[#ffd200]" fill="currentColor" viewBox="0 0 24 24">
+      <h3 class="text-base font-medium text-black flex items-center">
+        <svg class="w-[3em] h-[3em] mr-2 text-[#ffd200]" fill="currentColor" viewBox="0 0 24 24">
           <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
         </svg>
-        Select 30-Second Clip
+        Select 30s Clip – Drag the Frame to Your Best Segment
       </h3>
     </div>
 
-    <!-- Selection Info -->
-    <div v-if="!loading && duration > 0" class="mb-4 text-sm text-gray-300">
-      <span v-if="duration >= 30">
-        Selected: <span class="text-[#ffd200] font-medium">{{ formatTime(selectedStart) }} - {{ formatTime(selectedStart + 30) }}</span>
-      </span>
-      <span v-else>
-        Full Song: <span class="text-[#ffd200] font-medium">{{ formatTime(0) }} - {{ formatTime(duration) }}</span>
-      </span>
-      <span class="text-gray-400 ml-2">
-        (Total: {{ formatTime(duration) }})
-      </span>
-    </div>
 
     <!-- Waveform Container -->
-    <div ref="waveformContainer" class="waveform-container relative h-20 mb-4 rounded-lg overflow-hidden bg-gray-900">
+    <div ref="waveformContainer" class="waveform-container relative h-20 mb-4 rounded-lg overflow-hidden">
       <!-- Base Gray Waveform (z-0) -->
       <div ref="baseWaveform" class="absolute inset-0 z-0"></div>
       
@@ -49,6 +37,21 @@
       <div v-if="loading" class="absolute inset-0 z-30 flex items-center justify-center bg-black/50">
         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ffd200]"></div>
       </div>
+    </div>
+
+    <!-- Selection Info -->
+    <div v-if="!loading && duration > 0" class="flex justify-between items-center mb-4">
+      <div class="text-sm text-black">
+        <span v-if="duration >= 30">
+          <span class="text-[#ffd200] font-medium">Selected: {{ formatTime(selectedStart) }}</span> →
+          <span class="text-[#ffd200] font-medium">{{ formatTime(selectedStart + 30) }}</span>
+          <span class="ml-2 text-black">(30 seconds)</span>
+        </span>
+        <span v-else class="text-green-400">
+          ✓ Entire song will be used ({{ formatTime(duration) }})
+        </span>
+      </div>
+      <div class="text-xs text-black">Total: {{ formatTime(duration) }}</div>
     </div>
 
     <!-- Control Buttons -->
@@ -84,7 +87,7 @@
       <button
         v-if="duration >= 30"
         @click="resetToStart"
-        class="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+        class="px-4 py-2 bg-transparent text-black rounded-lg hover:bg-transparent transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         type="button"
         :disabled="loading || !baseWavesurfer || isPlaying"
       >
@@ -92,9 +95,16 @@
       </button>
     </div>
 
-    <!-- Tip -->
-    <div v-if="duration >= 30" class="mt-3 text-xs text-gray-400 bg-gray-800/50 rounded p-2">
-      💡 Drag the white frame to select your 30-second clip
+    <!-- Tip Block -->
+    <div class="mt-3 text-xs text-black rounded p-2">
+      <span v-if="duration >= 30">
+        💡 <strong>Tip:</strong> Drag the golden frame across the waveform to select your best 30-second clip. 
+        The yellow waveform bars show exactly what will be used in battles!
+      </span>
+      <span v-else>
+        ✅ <strong>Perfect!</strong> Your song is under 30 seconds, so the entire track will be used in battles. 
+        The yellow waveform shows your full song!
+      </span>
     </div>
   </div>
 </template>
@@ -557,6 +567,10 @@ onUnmounted(() => {
   box-shadow: 0 0 0 2px #000000, 0 2px 12px rgba(255, 210, 0, 0.6);
   transition: all 0.2s ease;
   pointer-events: all;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 .selection-frame:active {
