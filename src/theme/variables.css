@@ -377,3 +377,40 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Custom Checkbox Styling - Web App Parity (18px × 13px) */
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 18px;
+  height: 13px;
+  border: 1px solid black;
+  border-radius: 3px;
+  background-color: white;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+input[type="checkbox"]:checked {
+  background-color: #3b82f6; /* Blue background when checked */
+  border-color: #3b82f6; /* Blue border when checked */
+}
+
+input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px; /* Adjusted for 18px width */
+  top: 1px; /* Adjusted for 13px height */
+  width: 4px; /* Checkmark width */
+  height: 8px; /* Checkmark height */
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+input[type="checkbox"]:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}

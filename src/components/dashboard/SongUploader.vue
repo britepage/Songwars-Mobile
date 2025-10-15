@@ -261,30 +261,40 @@
         </button>
         
         <!-- Section 7: Upload Guidelines -->
-        <div class="rounded-2xl p-6 border border-yellow-400/30 bg-yellow-50/5">
-          <div class="flex items-start space-x-2 mb-4">
-            <span class="text-yellow-500">ℹ️</span>
-            <h3 class="text-sm font-semibold theme-text-primary">Upload Guidelines</h3>
-          </div>
+        <div class="rounded-2xl p-6 border theme-bg-card theme-border-card">
+          <h3 class="text-lg font-semibold theme-text-primary mb-4 flex items-center">
+            <svg class="w-5 h-5 mr-2 text-[#ffd200]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            Upload Guidelines
+          </h3>
           
-          <ul class="space-y-2">
-            <li class="flex items-start space-x-2 text-sm theme-text-secondary">
-              <span class="text-green-500 mt-0.5">✓</span>
+          <div class="space-y-3 text-sm theme-text-secondary">
+            <div class="flex items-start">
+              <svg class="w-4 h-4 mr-2 mt-0.5 text-[#ffd200] flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
               <span>Only original music you own the rights to</span>
-            </li>
-            <li class="flex items-start space-x-2 text-sm theme-text-secondary">
-              <span class="text-green-500 mt-0.5">✓</span>
+            </div>
+            <div class="flex items-start">
+              <svg class="w-4 h-4 mr-2 mt-0.5 text-[#ffd200] flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
               <span>High quality audio files (MP3, WAV, M4A)</span>
-            </li>
-            <li class="flex items-start space-x-2 text-sm theme-text-secondary">
-              <span class="text-green-500 mt-0.5">✓</span>
+            </div>
+            <div class="flex items-start">
+              <svg class="w-4 h-4 mr-2 mt-0.5 text-[#ffd200] flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
               <span>Maximum file size: 50MB</span>
-            </li>
-            <li class="flex items-start space-x-2 text-sm theme-text-secondary">
-              <span class="text-green-500 mt-0.5">✓</span>
+            </div>
+            <div class="flex items-start">
+              <svg class="w-4 h-4 mr-2 mt-0.5 text-[#ffd200] flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
               <span>Songs enter the weekly battle rotation</span>
-            </li>
-          </ul>
+            </div>
+          </div>
         </div>
       </div>
     </div>
