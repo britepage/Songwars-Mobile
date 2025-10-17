@@ -121,6 +121,7 @@
               
               <!-- Progress Ring -->
               <svg class="w-[72px] h-[72px] absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 -rotate-90 z-0">
+                <!-- Single thick black ring -->
                 <circle
                   cx="36"
                   cy="36"
@@ -128,8 +129,9 @@
                   stroke="currentColor"
                   stroke-width="2"
                   fill="none"
-                  class="text-gray-800"
+                  class="text-gray-900"
                 />
+                <!-- Progress Ring (yellow) -->
                 <circle
                   cx="36"
                   cy="36"
@@ -142,9 +144,6 @@
                   class="text-[#ffd200] transition-all duration-200"
                 />
               </svg>
-              
-              <!-- Background Circle -->
-              <div class="absolute inset-0 rounded-full transition-colors z-0 border-2 border-gray-600"></div>
             </div>
             
             <!-- Error Message -->
@@ -177,16 +176,16 @@
             </div>
           </h3>
           <!-- Artist -->
-          <p class="text-gray-400 text-sm mb-4 italic">{{ song.artist }}</p>
+          <p class="text-black text-sm mb-4 italic">{{ song.artist }}</p>
           <!-- Metrics Row -->
-          <p class="text-gray-300 text-sm flex items-center justify-center space-x-3">
+          <p class="text-black text-sm flex items-center justify-center space-x-3">
             <span>Total Votes: {{ (song.likes||0) + (song.dislikes||0) }}</span>
             <span class="text-gray-500">|</span>
             <span>Approval: 
               <span :class="{
                 'text-[#ffd200]': getApprovalRateNumber(song.likes, song.dislikes) >= 70,
-                'text-red-500': getApprovalRateNumber(song.likes, song.dislikes) < 50,
-                'text-gray-400': getApprovalRateNumber(song.likes, song.dislikes) === 0
+                'text-red-500': getApprovalRateNumber(song.likes, song.dislikes) > 0 && getApprovalRateNumber(song.likes, song.dislikes) < 50,
+                'text-black': getApprovalRateNumber(song.likes, song.dislikes) === 0
               }">
                 {{ calcApproval(song.likes, song.dislikes) }}%
               </span>
@@ -196,9 +195,12 @@
           <p class="text-xs text-gray-500 mt-3">Uploaded: {{ formatDate(song.created_at) }}</p>
           <!-- Status Pills -->
           <div class="mt-4 flex items-center justify-center space-x-1">
-            <span class="px-3 py-1.5 rounded-full text-xs font-medium"
-              :class="getStatusPill(song).class">
-              {{ getStatusPill(song).text }}
+            <span 
+              v-for="(pill, index) in getStatusPills(song)" 
+              :key="index"
+              class="px-3 py-1.5 rounded-full text-xs font-medium"
+              :class="pill.class">
+              {{ pill.text }}
             </span>
             
             <!-- Info icon for moderation statuses -->
@@ -207,13 +209,20 @@
                 @click.stop="toggleStatusInfo(song.id)"
                 class="inline-flex items-center justify-center w-5 h-5 text-gray-400 hover:text-white focus:outline-none cursor-pointer"
                 :aria-expanded="openInfoForId === song.id"
-                title="More info"
-              >
+                title="More info">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" />
                 </svg>
               </button>
-              <!-- Popover content would go here -->
+              
+              <!-- Modal Popover -->
+              <div v-if="openInfoForId === song.id" 
+                   class="absolute z-50 mt-2 w-80 p-4 bg-gray-800 border border-gray-600 rounded-lg shadow-xl left-1/2 transform -translate-x-1/2">
+                <h4 class="text-white font-semibold mb-2">
+                  {{ song.status === 'under_review' ? 'Song Under Review' : 'Song Removed' }}
+                </h4>
+                <p class="text-gray-300 text-sm" v-html="getStatusMessage(song)"></p>
+              </div>
             </div>
           </div>
           <div class="mt-4 flex justify-center space-x-2">
@@ -479,17 +488,68 @@ const getApprovalRateNumber = (likes?: number|null, dislikes?: number|null) => {
   return (l / t) * 100
 }
 
-const getStatusPill = (song: any) => {
-  if (song.status === 'live' || song.is_active) {
-    return { text: 'Active', class: 'bg-green-400/10 text-green-400' }
-  }
+const getStatusPills = (song: any) => {
+  const pills = []
+  
+  // Moderation statuses take priority (only show one)
   if (song.status === 'under_review') {
-    return { text: 'Under Review', class: 'bg-yellow-400/10 text-yellow-400' }
+    return [{ 
+      text: 'Under Review', 
+      class: 'bg-yellow-400/10 text-yellow-400',
+      showInfoIcon: true 
+    }]
   }
   if (song.status === 'removed') {
-    return { text: 'Removed', class: 'bg-red-500/10 text-red-500' }
+    return [{ 
+      text: 'Removed', 
+      class: 'bg-red-500/10 text-red-500',
+      showInfoIcon: true 
+    }]
   }
-  return { text: 'Pending Final Score', class: 'bg-gray-400/10 text-gray-400' }
+  
+  // Churn statuses (can show multiple simultaneously)
+  if (song.is_active && song.churnState?.week < 4) {
+    pills.push({ 
+      text: 'Active', 
+      class: 'bg-green-400/10 text-green-400',
+      showInfoIcon: false 
+    })
+  }
+  
+  if (!song.is_active && song.churnState?.week === 4) {
+    pills.push({ 
+      text: 'Churn Completed', 
+      class: 'bg-gray-400/10 text-gray-400',
+      showInfoIcon: false 
+    })
+  }
+  
+  if (!song.is_active && song.churnState?.finalScore) {
+    pills.push({ 
+      text: `Final Score: ${song.churnState.finalScore}`, 
+      class: 'bg-yellow-400/10 text-yellow-400',
+      showInfoIcon: false 
+    })
+  }
+  
+  return pills
+}
+
+const getStatusMessage = (song: any) => {
+  const reason = song.status_change_reason || ''
+  const reasonSegment = reason ? ` for ${reason}` : ' after reaching our report threshold'
+  const lastUpdate = song.status_changed_at ? ` Last update: ${formatDate(song.status_changed_at)}.` : ''
+  
+  if (song.status === 'under_review') {
+    return `Your song is under review${reasonSegment}. It is temporarily paused from battles.${lastUpdate}<br><br>To appeal please email: <a href="mailto:policy@songwars.com" class="text-blue-600 hover:text-blue-800 underline">policy@songwars.com</a>`
+  }
+  
+  if (song.status === 'removed') {
+    const details = reason && !reason.includes('threshold') ? ` Details: ${reason}.` : ''
+    return `Your song was removed following review${reasonSegment}.${details}${lastUpdate}<br><br>To appeal please email: <a href="mailto:policy@songwars.com" class="text-blue-600 hover:text-blue-800 underline">policy@songwars.com</a>`
+  }
+  
+  return ''
 }
 
 const getProgressOffset = (songId: string) => {
