@@ -28,22 +28,52 @@
 
     <!-- Filters/Search (Active only) -->
     <div v-if="activeTab === 'active'" class="mb-6 flex items-center flex-wrap gap-3">
-      <div class="flex items-center space-x-2">
-        <label class="text-sm font-medium text-gray-300">Filter by Genre:</label>
-        <select v-model="selectedGenre" class="bg-gray-800 border border-gray-600 rounded-md px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#ffd200] focus:border-transparent">
-          <option value="">All Genres</option>
-          <option v-for="g in availableGenres" :key="g" :value="g">{{ g }}</option>
-        </select>
-        <button v-if="selectedGenre" @click="selectedGenre = ''" class="text-xs text-gray-400 hover:text-white transition-colors">Clear Filter</button>
+      <div class="relative flex items-center space-x-2 z-50">
+        <label class="text-sm font-medium text-gray-700 whitespace-nowrap">Filter by Genre:</label>
+        <!-- Headless UI Listbox replacement for native select -->
+        <Listbox v-model="selectedGenre">
+          <div ref="genreTriggerRef" class="relative">
+            <ListboxButton as="div" role="button" tabindex="0" @click="updateOptionsPosition" class="bg-white border border-gray-300 border-solid rounded-md px-3 py-2 text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#ffd200] focus:border-transparent w-[180px] text-left flex items-center justify-between">
+              <span>{{ selectedGenre || 'All Genres' }}</span>
+              <svg class="ml-2 h-4 w-4 text-gray-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd"/></svg>
+            </ListboxButton>
+            <Teleport to="body">
+              <ListboxOptions
+                :style="optionsStyle"
+                class="absolute z-50 mt-1 max-h-60 w-[180px] overflow-auto rounded-md border border-gray-200 bg-white py-1 text-gray-900 outline-none"
+              >
+                <ListboxOption
+                  v-for="g in [''].concat(availableGenres)"
+                  :key="g || 'all'"
+                  :value="g"
+                  as="template"
+                  v-slot="{ active, selected }"
+                >
+                  <li
+                    :class="[
+                      'px-3 py-2 text-sm cursor-pointer text-gray-900',
+                      active && 'bg-gray-100',
+                      selected && 'font-medium'
+                    ]"
+                  >
+                    {{ g || 'All Genres' }}
+                  </li>
+                </ListboxOption>
+              </ListboxOptions>
+            </Teleport>
+          </div>
+        </Listbox>
+        <button v-if="selectedGenre" @click="selectedGenre = ''" class="text-xs text-gray-500 hover:text-gray-700 transition-colors px-2 py-1">Clear</button>
       </div>
       <div class="flex items-center space-x-2 flex-1 max-w-md">
+        <label class="text-sm font-medium text-gray-700 whitespace-nowrap">Search Songs:</label>
         <div class="relative flex-1">
-          <input v-model="searchQuery" type="text" placeholder="Search by song title..." class="w-full bg-gray-800 border border-gray-600 rounded-md pl-10 pr-4 py-2 text-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ffd200] focus:border-transparent" />
+          <input v-model="searchQuery" type="text" placeholder="Search by song title..." class="w-full bg-white border border-gray-300 rounded-md pl-10 pr-4 py-2 text-gray-900 text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#ffd200] focus:border-transparent shadow-sm" />
           <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
           </div>
         </div>
-        <button v-if="searchQuery" @click="searchQuery = ''" class="text-xs text-gray-400 hover:text-white transition-colors">Clear Search</button>
+        <button v-if="searchQuery" @click="searchQuery = ''" class="text-xs text-gray-500 hover:text-gray-700 transition-colors px-2 py-1">Clear</button>
       </div>
     </div>
 
@@ -62,7 +92,7 @@
 
     <!-- Active Songs Grid -->
     <div v-if="activeTab==='active' && filteredActiveSongs.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      <div v-for="song in filteredActiveSongs" :key="song.id" class="border rounded-xl p-6 text-center flex flex-col justify-between hover:border-[#ffd200]/50 hover:!border-[#ffd200]/50 transition-all duration-300 border-gray-700 bg-gray-800 theme-bg-card theme-border-card">
+      <div v-for="song in filteredActiveSongs" :key="song.id" class="border rounded-xl p-6 text-center flex flex-col justify-between transition-all duration-300 border-gray-700 bg-gray-800 theme-bg-card theme-border-card">
         <div>
           <!-- Play Circle with Loading/Error States -->
           <div class="mb-4">
@@ -81,10 +111,10 @@
               
               <!-- Normal Play/Pause State -->
               <div v-else class="absolute inset-0 flex items-center justify-center z-10">
-                <svg v-if="!isPlaying(song.id)" class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <svg v-if="!isPlaying(song.id)" class="w-6 h-6 text-gray-900" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M8 5v14l11-7z"/>
                 </svg>
-                <svg v-else class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <svg v-else class="w-6 h-6 text-gray-900" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
                 </svg>
               </div>
@@ -114,7 +144,7 @@
               </svg>
               
               <!-- Background Circle -->
-              <div class="absolute inset-0 theme-bg-card rounded-full group-hover:bg-[#ffd200] transition-colors z-0 border-2 play-inner"></div>
+              <div class="absolute inset-0 rounded-full transition-colors z-0 border-2 border-gray-600"></div>
             </div>
             
             <!-- Error Message -->
@@ -354,16 +384,35 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { useAudioPlayer } from '@/composables/useAudioPlayer'
+import { useHowlerPlayer } from '@/composables/useHowlerPlayer'
 import { useSongStore } from '@/stores/songStore'
 import WaveformSelectorDual from '@/components/dashboard/WaveformSelectorDual.vue'
+import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 
 const songStore = useSongStore()
-const audio = useAudioPlayer()
+const audio = useHowlerPlayer()
 
 const activeTab = ref<'active'|'trash'>('active')
 const selectedGenre = ref('')
 const searchQuery = ref('')
+
+// Headless UI Listbox positioning state
+const listboxOpen = ref(false)
+const triggerRect = ref<DOMRect | null>(null)
+const genreTriggerRef = ref<HTMLElement | null>(null)
+const updateOptionsPosition = () => {
+  if (genreTriggerRef.value) {
+    triggerRect.value = genreTriggerRef.value.getBoundingClientRect()
+  }
+}
+const optionsStyle = computed(() => {
+  if (!triggerRect.value) return {}
+  return {
+    position: 'absolute',
+    left: `${triggerRect.value.left}px`,
+    top: `${triggerRect.value.bottom + 4}px`
+  } as Record<string, string>
+})
 
 // Modal states
 const showDeleteModal = ref(false)
@@ -382,10 +431,13 @@ const songTagCounts = ref<{ [key: string]: number }>({})
 const showTagTooltipId = ref<string | null>(null)
 const openInfoForId = ref<string | null>(null)
 
-// Audio player states
-const audioLoading = ref<{ [key: string]: boolean }>({})
-const audioErrors = ref<{ [key: string]: string }>({})
+// Audio player states - adapt Howler to existing interface
 const isMobile = ref(false)
+
+// Helper functions to adapt Howler player to song-specific interface
+const isPlaying = (songId: string) => audio.currentSongId.value === songId && audio.isPlaying.value
+const audioLoading = computed(() => ({ [audio.currentSongId.value || '']: audio.isLoading.value }))
+const audioErrors = computed(() => ({ [audio.currentSongId.value || '']: audio.error.value || '' }))
 
 // Edit form
 const editForm = ref<any>({ title: '', artist: '', genre: '', url: '', clipStartTime: 0 })
@@ -442,7 +494,8 @@ const getStatusPill = (song: any) => {
 
 const getProgressOffset = (songId: string) => {
   const circumference = 2 * Math.PI * 34
-  const progressValue = audio.progress.value[songId] || 0
+  // Only show progress for the currently playing song
+  const progressValue = audio.currentSongId.value === songId ? audio.progress.value : 0
   return circumference * (1 - progressValue / 100)
 }
 
@@ -452,16 +505,8 @@ const toggleSong = async (song: any) => {
   await audio.togglePlay({
     songId: song.id,
     audioUrl: song.url,
-    preservePositionOnPause: true,
-    onEnded: () => { /* Handle song ended */ },
-    onProgress: (progress) => { /* Progress automatically updated */ },
-    onError: (error) => { 
-      console.error(`Audio error for song ${song.id}:`, error)
-      audioErrors.value[song.id] = error.message
-    },
-    onLoadingChange: (isLoading) => { 
-      audioLoading.value[song.id] = isLoading
-    }
+    clipStartTime: song.clip_start_time || 0,
+    autoStopAfter: 30
   })
 }
 
@@ -469,7 +514,6 @@ const retryAudio = async (songId: string) => {
   const song = songStore.songs.find(s => s.id === songId)
   if (!song?.url) return
   
-  audioErrors.value[songId] = ''
   await toggleSong(song)
 }
 
@@ -568,9 +612,6 @@ onMounted(() => {
 // Optional: clean up listeners
 const cleanupFns: Array<() => void> = []
 onUnmounted(() => { cleanupFns.forEach(fn => fn()) })
-
-// Audio helpers
-const isPlaying = (id: string) => (audio.currentSongId?.value === id) && !!audio.isPlaying?.value
 </script>
 
 <style scoped>

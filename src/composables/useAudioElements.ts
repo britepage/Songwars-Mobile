@@ -1,3 +1,5 @@
+// DEPRECATED: Mobile app uses useHowlerPlayer.ts for better mobile audio support
+// This file may still be used by the web app
 import { ref, type Ref } from 'vue'
 
 export interface AudioElementOptions {

@@ -111,6 +111,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
+import { useHowlerPlayer } from '@/composables/useHowlerPlayer'
+
+// Audio preview player
+const previewPlayer = useHowlerPlayer()
 
 // Props
 interface Props {
@@ -140,12 +144,6 @@ const duration = ref(0)
 const isPlaying = ref(false)
 const isDragging = ref(false)
 
-// Audio preview
-const previewAudioRef = ref<HTMLAudioElement | null>(null)
-
-// Timeout management
-const timeoutIds: { [key: string]: NodeJS.Timeout } = {}
-
 // WaveSurfer instances
 let baseWavesurfer: any = null
 let yellowWavesurfer: any = null
@@ -155,13 +153,6 @@ const formatTime = (seconds: number): string => {
   const m = Math.floor(seconds / 60)
   const s = Math.floor(seconds % 60)
   return `${m}:${s.toString().padStart(2, '0')}`
-}
-
-const clearTimeoutForPreview = (previewId: string) => {
-  if (timeoutIds[previewId]) {
-    clearTimeout(timeoutIds[previewId])
-    delete timeoutIds[previewId]
-  }
 }
 
 // CSS Masking for yellow waveform
@@ -385,8 +376,8 @@ const startDrag = (event: MouseEvent | TouchEvent) => {
     updateYellowClippingDirect(constrainedStart)
     
     // Audio scrubbing during drag (if playing)
-    if (isPlaying.value && previewAudioRef.value) {
-      previewAudioRef.value.currentTime = constrainedStart
+    if (isPlaying.value) {
+      previewPlayer.seek(constrainedStart)
     }
   }
   
@@ -423,75 +414,22 @@ const startDrag = (event: MouseEvent | TouchEvent) => {
 // Audio playback functions
 const previewSelection = () => {
   if (!props.audioUrl) return
-
-  // Stop any existing preview
-  if (previewAudioRef.value) {
-    previewAudioRef.value.pause()
-    previewAudioRef.value.currentTime = 0
-  }
   
-  // Clear any existing timeout
-  clearTimeoutForPreview('preview')
-
-  // Create clean audio element
-  const previewAudio = new Audio(props.audioUrl)
-  previewAudio.preload = 'metadata'
-  previewAudioRef.value = previewAudio
+  const startTime = duration.value >= 30 ? selectedStart.value : 0
+  const playDuration = duration.value >= 30 ? 30 : duration.value
   
-  // Set the start time for the clip
-  if (duration.value >= 30) {
-    previewAudio.currentTime = selectedStart.value
-  } else {
-    previewAudio.currentTime = 0
-  }
-
-  // Update playing state
-  isPlaying.value = true
-
-  // Play with promise handling
-  previewAudio.play().then(() => {
-    console.log('▶️ Audio started playing successfully')
-  }).catch((error) => {
-    console.error('❌ Failed to play audio:', error)
-    isPlaying.value = false
-    previewAudioRef.value = null
+  previewPlayer.togglePlay({
+    songId: 'preview',
+    audioUrl: props.audioUrl,
+    clipStartTime: startTime,
+    autoStopAfter: playDuration
   })
-
-  // Stop after appropriate duration
-  const previewDuration = duration.value >= 30 ? 30000 : (duration.value * 1000)
-
-  // Set timeout
-  timeoutIds['preview'] = setTimeout(() => {
-    console.log('⏹️ Auto-stopping preview after', previewDuration, 'ms')
-    if (previewAudioRef.value === previewAudio) {
-      previewAudio.pause()
-      previewAudio.currentTime = 0
-      isPlaying.value = false
-      previewAudioRef.value = null
-    }
-    delete timeoutIds['preview']
-  }, previewDuration)
   
-  // Cleanup on ended
-  previewAudio.onended = () => {
-    if (previewAudioRef.value === previewAudio) {
-      isPlaying.value = false
-      previewAudioRef.value = null
-    }
-  }
+  isPlaying.value = previewPlayer.isPlaying.value
 }
 
 const stopPlayback = () => {
-  // Clear timeout
-  clearTimeoutForPreview('preview')
-  
-  // Stop audio
-  if (previewAudioRef.value) {
-    previewAudioRef.value.pause()
-    previewAudioRef.value.currentTime = 0
-    previewAudioRef.value = null
-  }
-  
+  previewPlayer.stop()
   isPlaying.value = false
   
   // Reset waveform position
@@ -528,17 +466,7 @@ watch(() => props.audioUrl, async (newUrl) => {
 
 // Cleanup on unmount
 onUnmounted(() => {
-  // Clear all timeouts
-  Object.keys(timeoutIds).forEach(previewId => {
-    clearTimeoutForPreview(previewId)
-  })
-  
-  // Stop and cleanup audio
-  if (previewAudioRef.value) {
-    previewAudioRef.value.pause()
-    previewAudioRef.value.currentTime = 0
-    previewAudioRef.value = null
-  }
+  // Howler player cleanup is handled automatically by the composable
   
   // Destroy WaveSurfer instances
   if (baseWavesurfer) {

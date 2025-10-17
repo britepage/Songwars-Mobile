@@ -1,5 +1,9 @@
-import { ref, computed } from 'vue'
-import { Howl } from 'howler'
+// DEPRECATED: Mobile app uses useHowlerPlayer.ts for better mobile audio support
+// This file may still be used by the web app
+import { ref, computed, onUnmounted } from 'vue'
+import { useAudioContext } from './useAudioContext'
+import { useAudioElements } from './useAudioElements'
+import { useAudioTimeouts } from './useAudioTimeouts'
 
 interface AudioPlayerOptions {
   songId: string
@@ -9,7 +13,11 @@ interface AudioPlayerOptions {
 }
 
 export function useAudioPlayer() {
-  const currentSound = ref<Howl | null>(null)
+  const { resumeAudioContext, ensureAudioContextReady } = useAudioContext()
+  const { createAudioElement, cleanupAudio } = useAudioElements()
+  const { setAudioTimeout, clearAllTimeouts } = useAudioTimeouts()
+
+  const currentAudio = ref<HTMLAudioElement | null>(null)
   const isPlaying = ref(false)
   const currentTime = ref(0)
   const duration = ref(0)
@@ -24,77 +32,97 @@ export function useAudioPlayer() {
 
   const togglePlay = async (options: AudioPlayerOptions) => {
     try {
+      // Initialize and resume AudioContext for mobile compatibility
+      await ensureAudioContextReady()
+
       // If same song is playing, pause it
-      if (currentSongId.value === options.songId && currentSound.value) {
+      if (currentSongId.value === options.songId && currentAudio.value) {
         if (isPlaying.value) {
-          currentSound.value.pause()
+          currentAudio.value.pause()
           isPlaying.value = false
         } else {
-          currentSound.value.play()
+          await resumeAudioContext() // Ensure context is ready
+          await currentAudio.value.play()
           isPlaying.value = true
         }
         return
       }
 
-      // Stop current sound if different song
-      if (currentSound.value) {
-        currentSound.value.stop()
-        currentSound.value.unload()
+      // Stop current audio if different song
+      if (currentAudio.value) {
+        currentAudio.value.pause()
+        currentAudio.value.currentTime = 0
+        currentAudio.value.src = ''
+        currentAudio.value.load()
+        currentAudio.value = null
       }
 
-      // Load new sound
+      // Load new audio
       isLoading.value = true
       error.value = null
       currentSongId.value = options.songId
 
-      const sound = new Howl({
-        src: [options.audioUrl],
-        html5: true,
-        preload: true,
-        onload: () => {
-          isLoading.value = false
-          duration.value = sound.duration()
-          
-          // Seek to clip start time if specified
-          if (options.clipStartTime) {
-            sound.seek(options.clipStartTime)
-          }
-          
-          sound.play()
-          isPlaying.value = true
-        },
-        onplay: () => {
-          isPlaying.value = true
-          updateProgress()
-        },
-        onpause: () => {
-          isPlaying.value = false
-        },
-        onstop: () => {
-          isPlaying.value = false
-          currentTime.value = 0
-        },
-        onend: () => {
-          isPlaying.value = false
-          currentTime.value = 0
-        },
-        onloaderror: (_id: any, err: any) => {
-          error.value = `Failed to load audio: ${err}`
-          isLoading.value = false
-        },
-        onplayerror: (_id: any, err: any) => {
-          error.value = `Failed to play audio: ${err}`
-          isPlaying.value = false
-        }
+      const audio = createAudioElement(options.audioUrl, {
+        preload: 'metadata',
+        isMobile: true // Mobile-optimized settings
       })
 
-      currentSound.value = sound
+      currentAudio.value = audio
+
+      // WAIT FOR METADATA TO LOAD (Promise wrapper)
+      await new Promise<void>((resolve, reject) => {
+        const handleMetadata = () => {
+          duration.value = audio.duration
+          
+          if (options.clipStartTime) {
+            audio.currentTime = options.clipStartTime
+          }
+          
+          audio.removeEventListener('loadedmetadata', handleMetadata)
+          audio.removeEventListener('error', handleError)
+          resolve()
+        }
+        
+        const handleError = (e: Event) => {
+          audio.removeEventListener('loadedmetadata', handleMetadata)
+          audio.removeEventListener('error', handleError)
+          reject(new Error('Failed to load audio metadata'))
+        }
+        
+        audio.addEventListener('loadedmetadata', handleMetadata)
+        audio.addEventListener('error', handleError)
+      })
+
+      // NOW play (metadata is guaranteed loaded)
+      await audio.play()
+      isPlaying.value = true
+      isLoading.value = false
+
+      // Add remaining event listeners
+      audio.addEventListener('play', () => {
+        isPlaying.value = true
+        updateProgress()
+      })
+
+      audio.addEventListener('pause', () => {
+        isPlaying.value = false
+      })
+
+      audio.addEventListener('ended', () => {
+        isPlaying.value = false
+        currentTime.value = 0
+      })
+
+      audio.addEventListener('timeupdate', () => {
+        currentTime.value = audio.currentTime
+      })
 
       // Auto-stop after specified duration
       if (options.autoStopAfter) {
-        setTimeout(() => {
-          if (currentSound.value === sound) {
-            sound.stop()
+        setAudioTimeout(options.songId, () => {
+          if (currentAudio.value === audio && isPlaying.value) {
+            audio.pause()
+            isPlaying.value = false
           }
         }, options.autoStopAfter)
       }
@@ -105,37 +133,46 @@ export function useAudioPlayer() {
   }
 
   const updateProgress = () => {
-    if (currentSound.value && isPlaying.value) {
-      currentTime.value = currentSound.value.seek() as number
+    if (currentAudio.value && isPlaying.value) {
+      currentTime.value = currentAudio.value.currentTime
       requestAnimationFrame(updateProgress)
     }
   }
 
   const stop = () => {
-    if (currentSound.value) {
-      currentSound.value.stop()
+    if (currentAudio.value) {
+      currentAudio.value.pause()
       isPlaying.value = false
       currentTime.value = 0
     }
   }
 
   const seek = (time: number) => {
-    if (currentSound.value) {
-      currentSound.value.seek(time)
+    if (currentAudio.value) {
+      currentAudio.value.currentTime = time
       currentTime.value = time
     }
   }
 
   const cleanup = () => {
-    if (currentSound.value) {
-      currentSound.value.unload()
-      currentSound.value = null
+    if (currentAudio.value) {
+      currentAudio.value.pause()
+      currentAudio.value.currentTime = 0
+      currentAudio.value.src = ''
+      currentAudio.value.load()
+      currentAudio.value = null
     }
+    clearAllTimeouts()
     isPlaying.value = false
     currentTime.value = 0
     duration.value = 0
     currentSongId.value = null
   }
+
+  // Cleanup on unmount
+  onUnmounted(() => {
+    cleanup()
+  })
 
   return {
     isPlaying,
