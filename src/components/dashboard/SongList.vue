@@ -94,6 +94,28 @@
     <div v-if="activeTab==='active' && filteredActiveSongs.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       <div v-for="song in filteredActiveSongs" :key="song.id" class="border rounded-xl p-6 text-center flex flex-col justify-between transition-all duration-300 border-gray-700 bg-gray-800 theme-bg-card theme-border-card">
         <div>
+          <!-- Title with Tag Indicator -->
+          <h3 class="font-semibold text-white text-lg mb-1 break-words flex items-center justify-center relative theme-text-primary">
+            {{ song.title }}
+            <!-- Tag indicator -->
+            <svg v-if="songTagCounts[song.id] > 0" 
+                 class="inline-block w-3 h-3 ml-1 text-[#ffd200] cursor-pointer" 
+                 fill="currentColor" 
+                 viewBox="0 0 24 24"
+                 @click="showTagTooltip(song.id)"
+                 :title="`Tags: ${songTagCounts[song.id]}`">
+              <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+            </svg>
+            <!-- Tag count tooltip -->
+            <div v-if="showTagTooltipId === song.id" 
+                 class="absolute top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg z-10 whitespace-nowrap">
+              Tags: {{ songTagCounts[song.id] }}
+              <div class="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-800 rotate-45"></div>
+            </div>
+          </h3>
+          <!-- Artist -->
+          <p class="text-black text-sm mb-4 italic">{{ song.artist }}</p>
+          
           <!-- Play Circle with Loading/Error States -->
           <div class="mb-4">
             <div class="w-16 h-16 mx-auto mb-2 relative cursor-pointer group" @click="audioErrors[song.id] ? retryAudio(song.id) : toggleSong(song)">
@@ -156,27 +178,6 @@
               Tap to retry
             </div>
           </div>
-          <!-- Title with Tag Indicator -->
-          <h3 class="font-semibold text-white text-lg mb-1 break-words flex items-center justify-center relative theme-text-primary">
-            {{ song.title }}
-            <!-- Tag indicator -->
-            <svg v-if="songTagCounts[song.id] > 0" 
-                 class="inline-block w-3 h-3 ml-1 text-[#ffd200] cursor-pointer" 
-                 fill="currentColor" 
-                 viewBox="0 0 24 24"
-                 @click="showTagTooltip(song.id)"
-                 :title="`Tags: ${songTagCounts[song.id]}`">
-              <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
-            </svg>
-            <!-- Tag count tooltip -->
-            <div v-if="showTagTooltipId === song.id" 
-                 class="absolute top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg z-10 whitespace-nowrap">
-              Tags: {{ songTagCounts[song.id] }}
-              <div class="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-800 rotate-45"></div>
-            </div>
-          </h3>
-          <!-- Artist -->
-          <p class="text-black text-sm mb-4 italic">{{ song.artist }}</p>
           <!-- Metrics Row -->
           <p class="text-black text-sm flex items-center justify-center space-x-3">
             <span>Total Votes: {{ (song.likes||0) + (song.dislikes||0) }}</span>
@@ -195,39 +196,61 @@
           <p class="text-xs text-gray-500 mt-3">Uploaded: {{ formatDate(song.created_at) }}</p>
           <!-- Status Pills -->
           <div class="mt-4 flex items-center justify-center space-x-1">
-            <span 
-              v-for="(pill, index) in getStatusPills(song)" 
-              :key="index"
-              class="px-3 py-1.5 rounded-full text-xs font-medium"
-              :class="pill.class">
-              {{ pill.text }}
-            </span>
-            
-            <!-- Info icon for moderation statuses -->
-            <div v-if="song.status === 'under_review' || song.status === 'removed'" class="relative inline-block">
-              <button
-                @click.stop="toggleStatusInfo(song.id)"
-                class="inline-flex items-center justify-center w-5 h-5 text-gray-400 hover:text-white focus:outline-none cursor-pointer"
-                :aria-expanded="openInfoForId === song.id"
-                title="More info">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" />
-                </svg>
-              </button>
+            <template v-for="(pill, index) in getStatusPills(song)" :key="index">
+              <span 
+                class="px-3 py-1.5 rounded-full text-xs font-medium"
+                :class="pill.class">
+                {{ pill.text }}
+              </span>
               
-              <!-- Modal Popover -->
-              <div v-if="openInfoForId === song.id" 
-                   class="absolute z-50 mt-2 w-80 p-4 bg-gray-800 border border-gray-600 rounded-lg shadow-xl left-1/2 transform -translate-x-1/2">
-                <h4 class="text-white font-semibold mb-2">
-                  {{ song.status === 'under_review' ? 'Song Under Review' : 'Song Removed' }}
-                </h4>
-                <p class="text-gray-300 text-sm" v-html="getStatusMessage(song)"></p>
+              <!-- Info icon appears immediately AFTER pills with showInfoIcon -->
+              <div v-if="pill.showInfoIcon" class="relative inline-block">
+                <button
+                  @click.stop="toggleStatusInfo(song.id)"
+                  class="inline-flex items-center justify-center w-5 h-5 text-gray-400 hover:text-white focus:outline-none cursor-pointer"
+                  :aria-expanded="openInfoForId === song.id"
+                  title="More info">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" />
+                  </svg>
+                </button>
+                
+                <!-- Modal Popover -->
+                <div v-if="openInfoForId === song.id" 
+                     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+                     @click.self="openInfoForId = null">
+                  <div :class="['border rounded-lg shadow-xl max-w-md w-full max-h-[80vh] overflow-y-auto', modalClasses.container]">
+                    <div class="p-6">
+                      <div class="flex items-start justify-between mb-3">
+                        <h4 :class="['font-semibold text-lg', modalClasses.title]">
+                          {{ song.status === 'under_review' ? 'Song Under Review' : 'Song Removed' }}
+                        </h4>
+                        <button @click="openInfoForId = null" :class="['-mt-1 -mr-1 w-auto h-auto min-w-0 min-h-0', modalClasses.button]">
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                          </svg>
+                        </button>
+                      </div>
+                      <p :class="['text-sm', modalClasses.body]" v-html="getStatusMessage(song)"></p>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            </template>
           </div>
           <div class="mt-4 flex justify-center space-x-2">
-            <button @click="openEdit(song)" class="px-3 py-2 bg-[#ffd200] text-black rounded-lg hover:bg-[#e6bd00] transition-colors text-sm font-medium">Edit</button>
-            <button @click="openDelete(song)" class="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium">Delete</button>
+            <button @click="openEdit(song)" class="px-3 py-2 bg-[#ffd200] text-black rounded-lg hover:bg-[#e6bd00] transition-colors text-sm font-medium flex items-center space-x-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+              </svg>
+              <span>Edit</span>
+            </button>
+            <button @click="openDelete(song)" class="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium flex items-center space-x-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+              </svg>
+              <span>Delete</span>
+            </button>
           </div>
         </div>
       </div>
@@ -395,11 +418,13 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useHowlerPlayer } from '@/composables/useHowlerPlayer'
 import { useSongStore } from '@/stores/songStore'
+import { useThemeStore } from '@/stores/themeStore'
 import WaveformSelectorDual from '@/components/dashboard/WaveformSelectorDual.vue'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 
 const songStore = useSongStore()
 const audio = useHowlerPlayer()
+const themeStore = useThemeStore()
 
 const activeTab = ref<'active'|'trash'>('active')
 const selectedGenre = ref('')
@@ -454,6 +479,14 @@ const editForm = ref<any>({ title: '', artist: '', genre: '', url: '', clipStart
 const totalActiveCount = computed(() => songStore.songs?.length || 0)
 const trashedCount = computed(() => songStore.deletedSongs?.length || 0)
 
+// Modal theme classes
+const modalClasses = computed(() => ({
+  container: themeStore.isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300',
+  title: themeStore.isDark ? 'text-white' : 'text-black',
+  body: themeStore.isDark ? 'text-gray-300' : 'text-gray-700',
+  button: themeStore.isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'
+}))
+
 const availableGenres = computed(() => {
   const set = new Set<string>()
   ;(songStore.songs || []).forEach(s => { if (s.genre) set.add(String(s.genre)) })
@@ -491,35 +524,43 @@ const getApprovalRateNumber = (likes?: number|null, dislikes?: number|null) => {
 const getStatusPills = (song: any) => {
   const pills = []
   
-  // Moderation statuses take priority (only show one)
+  // Moderation statuses (can show with other pills)
   if (song.status === 'under_review') {
-    return [{ 
+    pills.push({ 
       text: 'Under Review', 
       class: 'bg-yellow-400/10 text-yellow-400',
       showInfoIcon: true 
-    }]
-  }
-  if (song.status === 'removed') {
-    return [{ 
+    })
+  } else if (song.status === 'removed') {
+    pills.push({ 
       text: 'Removed', 
       class: 'bg-red-500/10 text-red-500',
       showInfoIcon: true 
-    }]
-  }
-  
-  // Churn statuses (can show multiple simultaneously)
-  if (song.is_active && song.churnState?.week < 4) {
-    pills.push({ 
-      text: 'Active', 
-      class: 'bg-green-400/10 text-green-400',
-      showInfoIcon: false 
     })
+  } else {
+    // Only show Active/Churn statuses if NOT under moderation
+    if (song.is_active && song.churnState?.week < 4) {
+      pills.push({ 
+        text: 'Active', 
+        class: 'bg-green-400/10 text-green-400',
+        showInfoIcon: false 
+      })
+    }
+    
+    if (!song.is_active && song.churnState?.week === 4) {
+      pills.push({ 
+        text: 'Churn Completed', 
+        class: 'bg-gray-400/10 text-gray-400',
+        showInfoIcon: false 
+      })
+    }
   }
   
-  if (!song.is_active && song.churnState?.week === 4) {
+  // Show "Pending Final Score" as plain black text (no pill background)
+  if (!song.churnState?.finalScore) {
     pills.push({ 
-      text: 'Churn Completed', 
-      class: 'bg-gray-400/10 text-gray-400',
+      text: 'Pending Final Score', 
+      class: 'text-black',  // Plain black text, no background pill
       showInfoIcon: false 
     })
   }
@@ -546,7 +587,7 @@ const getStatusMessage = (song: any) => {
   
   if (song.status === 'removed') {
     const details = reason && !reason.includes('threshold') ? ` Details: ${reason}.` : ''
-    return `Your song was removed following review${reasonSegment}.${details}${lastUpdate}<br><br>To appeal please email: <a href="mailto:policy@songwars.com" class="text-blue-600 hover:text-blue-800 underline">policy@songwars.com</a>`
+    return `Your song was removed following a review${reasonSegment}.${details}${lastUpdate}<br><br>To appeal please email: <a href="mailto:policy@songwars.com" class="text-blue-600 hover:text-blue-800 underline">policy@songwars.com</a>`
   }
   
   return ''
@@ -565,8 +606,7 @@ const toggleSong = async (song: any) => {
   await audio.togglePlay({
     songId: song.id,
     audioUrl: song.url,
-    clipStartTime: song.clip_start_time || 0,
-    autoStopAfter: 30
+    clipStartTime: song.clip_start_time || 0
   })
 }
 
