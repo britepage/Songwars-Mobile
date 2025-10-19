@@ -47,6 +47,9 @@ export const useSongStore = defineStore('songs', () => {
   const lastLoadedIndex = ref(-1) // -1 means nothing loaded yet
   const hasMoreSongs = ref(true)
   const totalSongs = ref(0)
+  // Trash state management
+  const trashedSongs = ref<Song[]>([])
+  const loadingTrashedSongs = ref(false)
 
   // Getters
   const userSongs = computed(() => songs.value.filter(song => song.status === 'live'))
@@ -278,20 +281,22 @@ export const useSongStore = defineStore('songs', () => {
       isLoading.value = true
       error.value = null
 
-      const { data, error: deleteError } = await supabaseService.getClient()
+      const { error: deleteError } = await supabaseService.getClient()
         .rpc('soft_delete_song', { p_song_id: songId })
 
       if (deleteError) {
         throw deleteError
       }
 
-      // Update local state with the returned song data
-      const index = songs.value.findIndex(song => song.id === songId)
-      if (index !== -1 && data) {
-        songs.value[index] = data
+      // Remove from active songs list
+      songs.value = songs.value.filter(song => song.id !== songId)
+      
+      // Refresh trash if it's currently loaded
+      if (trashedSongs.value.length > 0) {
+        await fetchTrashedSongs()
       }
 
-      return { success: true, data }
+      return { success: true }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to delete song'
       return { success: false, error: error.value }
@@ -305,20 +310,20 @@ export const useSongStore = defineStore('songs', () => {
       isLoading.value = true
       error.value = null
 
-      const { data, error: restoreError } = await supabaseService.getClient()
+      const { error: restoreError } = await supabaseService.getClient()
         .rpc('restore_song', { p_song_id: songId })
 
       if (restoreError) {
         throw restoreError
       }
 
-      // Update local state with the returned song data
-      const index = songs.value.findIndex(song => song.id === songId)
-      if (index !== -1 && data) {
-        songs.value[index] = data
-      }
+      // Remove from trashed songs list
+      trashedSongs.value = trashedSongs.value.filter(song => song.id !== songId)
+      
+      // Don't refresh active songs here - let the component handle it with proper filters
+      // await fetchSongs(); // Removed to prevent clearing filters
 
-      return { success: true, data }
+      return { success: true }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to restore song'
       return { success: false, error: error.value }
@@ -435,6 +440,54 @@ export const useSongStore = defineStore('songs', () => {
     error.value = null
   }
 
+  // Trash functions
+  const fetchTrashedSongs = async () => {
+    try {
+      loadingTrashedSongs.value = true
+      error.value = null
+
+      const { data, error: fetchError } = await supabaseService.getClient()
+        .rpc('get_my_trashed_songs')
+
+      if (fetchError) {
+        throw fetchError
+      }
+
+      trashedSongs.value = data || []
+      return { success: true, data }
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to fetch trashed songs'
+      trashedSongs.value = []
+      return { success: false, error: error.value }
+    } finally {
+      loadingTrashedSongs.value = false
+    }
+  }
+
+  const hardDeleteSong = async (songId: string) => {
+    try {
+      isLoading.value = true
+      error.value = null
+
+      const { error: deleteError } = await supabaseService.getClient()
+        .rpc('hard_delete_song', { p_song_id: songId })
+
+      if (deleteError) {
+        throw deleteError
+      }
+
+      // Remove from trashed songs list
+      trashedSongs.value = trashedSongs.value.filter(song => song.id !== songId)
+
+      return { success: true }
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to permanently delete song'
+      return { success: false, error: error.value }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   // General fetch songs method (alias for fetchUserSongs)
   const fetchSongs = fetchUserSongs
 
@@ -448,6 +501,8 @@ export const useSongStore = defineStore('songs', () => {
     lastLoadedIndex,
     hasMoreSongs,
     totalSongs,
+    trashedSongs,
+    loadingTrashedSongs,
     
     // Getters
     userSongs,
@@ -468,5 +523,7 @@ export const useSongStore = defineStore('songs', () => {
     searchSongs,
     clearSongs,
     clearError,
+    fetchTrashedSongs,
+    hardDeleteSong,
   }
 })

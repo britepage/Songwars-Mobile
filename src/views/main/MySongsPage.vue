@@ -1,7 +1,7 @@
 <template>
   <ion-page>
     <ion-content :fullscreen="true" class="theme-bg-primary">
-      <div class="min-h-screen p-4 md:p-8 pt-28 theme-bg-primary">
+      <div class="min-h-screen p-4 md:p-8 pt-28 pb-[8em] theme-bg-primary">
         <div class="max-w-6xl mx-auto">
           <!-- Header -->
           <div class="flex items-center justify-between mb-8">

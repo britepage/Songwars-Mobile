@@ -78,13 +78,13 @@
     </div>
 
     <!-- Loading State -->
-    <div v-if="songStore.loadingSongs" class="text-center py-8">
+    <div v-if="songStore.isLoading" class="text-center py-8">
       <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-[#ffd200] mx-auto"></div>
       <p class="mt-4 text-gray-400">Loading songs...</p>
     </div>
 
     <!-- Active Songs Empty State -->
-    <div v-else-if="!songStore.loadingSongs && filteredActiveSongs.length === 0 && !selectedGenre && !searchQuery" class="text-center py-12">
+    <div v-else-if="!songStore.isLoading && filteredActiveSongs.length === 0 && !selectedGenre && !searchQuery" class="text-center py-12">
       <div class="text-gray-400 text-6xl mb-4">🎵</div>
       <p class="text-gray-400 text-lg">No songs uploaded yet</p>
       <p class="text-gray-500 mt-2">Your uploaded songs will appear here</p>
@@ -256,8 +256,79 @@
       </div>
     </div>
 
+    <!-- Trash Loading State -->
+    <div v-if="activeTab==='trash' && songStore.loadingTrashedSongs" class="text-center py-8">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-[#ffd200] mx-auto"></div>
+      <p class="mt-4 text-gray-400">Loading trashed songs...</p>
+    </div>
+
+    <!-- Trash Cards Grid -->
+    <div v-else-if="activeTab==='trash' && songStore.trashedSongs.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div v-for="song in songStore.trashedSongs" :key="song.id" 
+        class="border rounded-xl p-6 text-center flex flex-col justify-between hover:border-red-500/50 transition-all duration-300 border-gray-700 bg-gray-800 theme-bg-card theme-border-card">
+        <div>
+          <!-- Song Title and Artist -->
+          <h3 class="font-semibold text-black text-lg mb-1 break-words">{{ song.title }}</h3>
+          <p class="text-gray-500 text-sm mb-4 italic">{{ song.artist }}</p>
+          
+          <!-- Trash Status Box -->
+          <div class="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+            <p class="text-red-400 text-sm font-medium">Moved to trash</p>
+            <p class="text-red-300 text-xs mt-1">
+              {{ getTrashExpiryText(song.trash_expires_at || null) }}
+            </p>
+          </div>
+
+          <!-- Metrics Row -->
+          <p class="text-black text-sm flex items-center justify-center space-x-3">
+            <span>Total Votes: {{ (song.likes || 0) + (song.dislikes || 0) }}</span>
+            <span class="text-black">|</span>
+            <span>Approval: 
+              <span :class="{
+                'text-[#ffd200]': getApprovalRateNumber(song.likes, song.dislikes) >= 70,
+                'text-red-500': getApprovalRateNumber(song.likes, song.dislikes) < 50,
+                'text-gray-400': getApprovalRateNumber(song.likes, song.dislikes) === 0
+              }">
+                {{ calcApproval(song.likes, song.dislikes) }}%
+              </span>
+            </span>
+          </p>
+          
+          <!-- Timestamps -->
+          <p class="text-xs text-gray-500 mt-3">Uploaded: {{ formatDate(song.created_at) }}</p>
+          <p class="text-xs text-red-400 mt-1">Deleted: {{ song.deleted_at ? formatDate(song.deleted_at) : 'Unknown' }}</p>
+          
+          <!-- Action Buttons -->
+          <div class="mt-4 flex justify-center space-x-2">
+            <button
+              @click="restoreSong(song.id)"
+              :disabled="restoringSong === song.id"
+              class="px-3 py-2 bg-[#ffd200] text-black rounded-lg hover:bg-[#e6bd00] disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium flex items-center"
+            >
+              <svg v-if="restoringSong !== song.id" class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+              </svg>
+              <div v-else class="animate-spin rounded-full h-4 w-4 mr-1 border-b-2 border-black"></div>
+              {{ restoringSong === song.id ? 'Restoring...' : 'Restore' }}
+            </button>
+            <button
+              @click="confirmHardDelete(song)"
+              :disabled="hardDeletingSong === song.id"
+              class="px-3 py-2 bg-red-700 text-white rounded-lg hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium flex items-center"
+            >
+              <svg v-if="hardDeletingSong !== song.id" class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1-1H9a1 1 0 00-1 1v3M4 7h16"/>
+              </svg>
+              <div v-else class="animate-spin rounded-full h-4 w-4 mr-1 border-b-2 border-white"></div>
+              {{ hardDeletingSong === song.id ? 'Deleting...' : 'Delete Permanently' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Trash Empty State -->
-    <div v-if="activeTab==='trash'" class="text-center py-12">
+    <div v-else-if="activeTab==='trash'" class="text-center py-12">
       <div class="text-gray-600 text-6xl mb-4">🗑️</div>
       <p class="text-gray-500 text-lg">No trashed songs</p>
       <p class="text-gray-600 mt-2">Deleted songs will appear here for 10 days</p>
@@ -276,11 +347,11 @@
 
     <!-- Delete Confirmation Modal -->
     <div v-if="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div class="bg-gray-900 rounded-xl max-w-md w-full">
+      <div class="bg-white rounded-xl max-w-md w-full">
         <div class="p-6">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-xl font-bold text-white">Delete Song</h3>
-            <button @click="showDeleteModal=false" class="text-gray-400 hover:text-white">
+            <h3 class="text-xl font-bold text-black">Delete Song</h3>
+            <button @click="showDeleteModal=false" class="text-gray-500 hover:text-gray-700 w-auto h-auto min-w-0 min-h-0">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
               </svg>
@@ -288,11 +359,11 @@
           </div>
           
           <div class="mb-6">
-            <p class="text-gray-300 mb-4">
+            <p class="text-gray-800 mb-4">
               Are you sure you want to delete "<strong>{{ songToDelete?.title }}</strong>" by {{ songToDelete?.artist }}?
             </p>
             <div class="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
-              <p class="text-yellow-400 text-sm">
+              <p class="text-yellow-600 text-sm">
                 <strong>Note:</strong> This will move the song to trash where it will be automatically deleted after 10 days. 
                 You can restore it anytime before then.
               </p>
@@ -309,7 +380,7 @@
             </button>
             <button
               @click="showDeleteModal=false"
-              class="px-4 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 font-medium"
+              class="px-4 py-3 bg-white text-black border border-gray-300 rounded-lg hover:bg-gray-100 font-medium"
             >
               Cancel
             </button>
@@ -320,11 +391,11 @@
 
     <!-- Hard Delete Modal -->
     <div v-if="showHardDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div class="bg-gray-900 rounded-xl max-w-md w-full">
+      <div class="bg-white rounded-xl max-w-md w-full">
         <div class="p-6">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-xl font-bold text-white">Permanently Delete Song</h3>
-            <button @click="closeHardDelete" class="text-gray-400 hover:text-white">
+            <h3 class="text-xl font-bold text-black">Permanently Delete Song</h3>
+            <button @click="closeHardDelete" class="text-gray-400 hover:text-white min-w-0 min-h-0">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
               </svg>
@@ -332,7 +403,7 @@
           </div>
           
           <div class="mb-6">
-            <p class="text-gray-300 mb-4">
+            <p class="text-black mb-4">
               Are you absolutely sure you want to <strong>permanently delete</strong> "<strong>{{ songToHardDelete?.title }}</strong>" by {{ songToHardDelete?.artist }}?
             </p>
             <div class="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
@@ -343,13 +414,13 @@
             
             <!-- Song name confirmation input -->
             <div class="mt-4">
-              <label class="block text-sm font-medium text-gray-300 mb-2">
+              <label class="block text-sm font-medium text-black mb-2">
                 Type the song name to confirm: <strong>"{{ songToHardDelete?.title }}"</strong>
               </label>
               <input
                 v-model="songNameConfirmation"
                 type="text"
-                class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-white placeholder-gray-400"
+                class="w-full px-3 py-2 bg-white border border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-black placeholder-gray-400"
                 placeholder="Enter song name to confirm"
               />
             </div>
@@ -357,7 +428,7 @@
           
           <div class="flex space-x-3">
             <button
-              @click="confirmHardDelete"
+              @click="hardDeleteSong"
               :disabled="hardDeleting || !canConfirmHardDelete"
               class="flex-1 px-4 py-3 bg-red-700 text-white rounded-lg hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
@@ -365,7 +436,7 @@
             </button>
             <button
               @click="closeHardDelete"
-              class="px-4 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 font-medium"
+              class="px-4 py-3 text-black rounded-lg hover:bg-gray-600 font-medium"
             >
               Cancel
             </button>
@@ -431,7 +502,6 @@ const selectedGenre = ref('')
 const searchQuery = ref('')
 
 // Headless UI Listbox positioning state
-const listboxOpen = ref(false)
 const triggerRect = ref<DOMRect | null>(null)
 const genreTriggerRef = ref<HTMLElement | null>(null)
 const updateOptionsPosition = () => {
@@ -460,6 +530,10 @@ const deleting = ref(false)
 const hardDeleting = ref(false)
 const loadingMore = ref(false)
 
+// Trash state variables
+const restoringSong = ref<string | null>(null)
+const hardDeletingSong = ref<string | null>(null)
+
 // Tag and status states
 const songTagCounts = ref<{ [key: string]: number }>({})
 const showTagTooltipId = ref<string | null>(null)
@@ -477,7 +551,7 @@ const audioErrors = computed(() => ({ [audio.currentSongId.value || '']: audio.e
 const editForm = ref<any>({ title: '', artist: '', genre: '', url: '', clipStartTime: 0 })
 
 const totalActiveCount = computed(() => songStore.songs?.length || 0)
-const trashedCount = computed(() => songStore.deletedSongs?.length || 0)
+const trashedCount = computed(() => songStore.trashedSongs?.length || 0)
 
 // Modal theme classes
 const modalClasses = computed(() => ({
@@ -501,11 +575,6 @@ const filteredActiveSongs = computed(() => {
 })
 
 const hasMoreActive = computed(() => (songStore as any).hasMoreSongs ?? false)
-
-const clearAllFilters = () => {
-  selectedGenre.value = ''
-  searchQuery.value = ''
-}
 
 const calcApproval = (likes?: number|null, dislikes?: number|null) => {
   const l = likes || 0, d = dislikes || 0
@@ -606,7 +675,7 @@ const toggleSong = async (song: any) => {
   await audio.togglePlay({
     songId: song.id,
     audioUrl: song.url,
-    clipStartTime: song.clip_start_time || 0
+    clipStartTime: 0
   })
 }
 
@@ -628,12 +697,6 @@ const toggleStatusInfo = (songId: string) => {
 const openDelete = (song: any) => {
   songToDelete.value = song
   showDeleteModal.value = true
-}
-
-const openHardDelete = (song: any) => {
-  songToHardDelete.value = song
-  songNameConfirmation.value = ''
-  showHardDeleteModal.value = true
 }
 
 const closeHardDelete = () => {
@@ -671,10 +734,86 @@ const saveEdit = async () => {
 
 const canConfirmHardDelete = computed(() => songNameConfirmation.value === songToHardDelete.value?.title)
 
+// Trash action handlers
+const restoreSong = async (songId: string) => {
+  restoringSong.value = songId
+  try {
+    const success = await songStore.restoreSong(songId)
+    if (success) {
+      // Refresh active songs to show restored song
+      await songStore.fetchSongs()
+    }
+  } finally {
+    restoringSong.value = null
+  }
+}
+
+const confirmHardDelete = (song: any) => {
+  songToHardDelete.value = song
+  songNameConfirmation.value = ''
+  showHardDeleteModal.value = true
+}
+
+const hardDeleteSong = async () => {
+  if (!songToHardDelete.value) return
+  
+  hardDeleting.value = true
+  try {
+    const success = await songStore.hardDeleteSong(songToHardDelete.value.id)
+    if (success) {
+      closeHardDelete()
+    }
+  } finally {
+    hardDeleting.value = false
+  }
+}
+
+const loadMore = async () => {
+  if (loadingMore.value) return
+  loadingMore.value = true
+  try {
+    await songStore.loadMoreSongs()
+  } finally {
+    loadingMore.value = false
+  }
+}
+
+const confirmDelete = async () => {
+  if (!songToDelete.value) return
+  
+  deleting.value = true
+  try {
+    const success = await songStore.softDeleteSong(songToDelete.value.id)
+    if (success) {
+      showDeleteModal.value = false
+      songToDelete.value = null
+    }
+  } finally {
+    deleting.value = false
+  }
+}
+
 const formatDate = (iso?: string|null) => {
   if (!iso) return ''
   const d = new Date(iso)
   return d.toLocaleDateString() + ' ' + d.toLocaleTimeString()
+}
+
+const getTrashExpiryText = (trashExpiresAt: string | null) => {
+  if (!trashExpiresAt) return 'Unknown expiry'
+  
+  const now = new Date()
+  const expiry = new Date(trashExpiresAt)
+  const diffMs = expiry.getTime() - now.getTime()
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+  
+  if (diffDays <= 0) {
+    return 'Expires today'
+  } else if (diffDays === 1) {
+    return 'Expires tomorrow'
+  } else {
+    return `Expires in ${diffDays} days`
+  }
 }
 
 // Simple debounce for search UX
@@ -682,6 +821,13 @@ let searchTimeout: any
 watch(searchQuery, () => {
   clearTimeout(searchTimeout)
   searchTimeout = setTimeout(() => {}, 300)
+})
+
+// Watch for tab changes to fetch trashed songs
+watch(activeTab, async (newTab) => {
+  if (newTab === 'trash') {
+    await songStore.fetchTrashedSongs()
+  }
 })
 
 // Mobile detection
