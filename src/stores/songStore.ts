@@ -249,10 +249,7 @@ export const useSongStore = defineStore('songs', () => {
 
       const { data, error: updateError } = await supabaseService.getClient()
         .from('songs')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString()
-        })
+        .update(updates)
         .eq('id', songId)
         .select()
         .single()

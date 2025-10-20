@@ -447,10 +447,10 @@
 
     <!-- Edit Modal -->
     <div v-if="showEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
-      <div class="bg-gray-900 rounded-xl max-w-4xl w-full max-h-[calc(100vh-8rem)] overflow-y-auto">
-        <div class="p-6 space-y-4">
+      <div class="bg-white rounded-xl max-w-4xl w-full max-h-[calc(100vh-8rem)] overflow-y-auto">
+        <div class="p-6 space-y-4 pb-[4em]">
           <div class="flex items-center justify-between">
-            <h3 class="text-xl font-bold text-white">Edit Song</h3>
+            <h3 class="text-xl font-bold text-black">Edit Song</h3>
             <button @click="showEditModal=false" class="text-gray-400 hover:text-white">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -459,25 +459,37 @@
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-gray-300 mb-1">Title</label>
-              <input v-model="editForm.title" class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-[#ffd200] focus:border-transparent" />
+              <label class="block text-sm font-medium text-black mb-1">Title</label>
+              <input v-model="editForm.title" class="w-full px-3 py-2 bg-white border border-gray-600 rounded-lg text-black focus:ring-2 focus:ring-[#ffd200] focus:border-transparent" />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-300 mb-1">Artist</label>
-              <input v-model="editForm.artist" class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-[#ffd200] focus:border-transparent" />
+              <label class="block text-sm font-medium text-black mb-1">Artist</label>
+              <input v-model="editForm.artist" class="w-full px-3 py-2 bg-white border border-gray-600 rounded-lg text-black focus:ring-2 focus:ring-[#ffd200] focus:border-transparent" />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-300 mb-1">Genre</label>
-              <input v-model="editForm.genre" class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-[#ffd200] focus:border-transparent" />
+              <label class="block text-sm font-medium text-black mb-1">Genre</label>
+              <select
+                v-model="editForm.genre"
+                class="w-full px-3 py-2 bg-white border border-gray-600 rounded-lg text-black focus:ring-2 focus:ring-[#ffd200] focus:border-transparent appearance-none cursor-pointer"
+              >
+                <option value="">Select genre</option>
+                <option 
+                  v-for="genreItem in uploadStore.battleReadyGenres" 
+                  :key="genreItem.genre"
+                  :value="genreItem.genre"
+                >
+                  {{ genreItem.genre }}{{ genreItem.is_battle_ready ? ' ●' : ' ○' }}
+                </option>
+              </select>
             </div>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-300 mb-2">Clip Start (preview)</label>
+            <label class="block text-sm font-medium text-black mb-2">Clip Start (preview)</label>
             <WaveformSelectorDual v-if="editForm.url" :audio-url="editForm.url" :initial-clip-start="editForm.clipStartTime || 0" @clip-changed="(t:number)=>editForm.clipStartTime=t" />
           </div>
           <div class="flex justify-end space-x-3 pt-2">
-            <button @click="showEditModal=false" class="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700">Cancel</button>
-            <button @click="saveEdit" class="px-4 py-2 rounded-lg bg-[#ffd200] text-black hover:bg-[#e6bd00]">Save</button>
+            <button @click="saveEdit" class="flex-1 px-4 py-2 rounded-lg bg-[#ffd200] text-black hover:bg-[#e6bd00]">Save Changes</button>
+            <button @click="showEditModal=false" class="px-4 py-2 text-black hover:text-gray-600">Cancel</button>
           </div>
         </div>
       </div>
@@ -490,12 +502,14 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useHowlerPlayer } from '@/composables/useHowlerPlayer'
 import { useSongStore } from '@/stores/songStore'
 import { useThemeStore } from '@/stores/themeStore'
+import { useUploadStore } from '@/stores/uploadStore'
 import WaveformSelectorDual from '@/components/dashboard/WaveformSelectorDual.vue'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 
 const songStore = useSongStore()
 const audio = useHowlerPlayer()
 const themeStore = useThemeStore()
+const uploadStore = useUploadStore()
 
 const activeTab = ref<'active'|'trash'>('active')
 const selectedGenre = ref('')
@@ -705,7 +719,7 @@ const closeHardDelete = () => {
   songNameConfirmation.value = ''
 }
 
-const openEdit = (song: any) => {
+const openEdit = async (song: any) => {
   editingSongId.value = song.id
   editForm.value = { 
     title: song.title, 
@@ -714,6 +728,10 @@ const openEdit = (song: any) => {
     url: song.url || song.audioUrl, 
     clipStartTime: song.clip_start_time || 0 
   }
+  
+  // Load battle-ready genres for dropdown
+  await uploadStore.loadBattleReadyGenres()
+  
   showEditModal.value = true
 }
 
