@@ -108,9 +108,9 @@
             </svg>
             <!-- Tag count tooltip -->
             <div v-if="showTagTooltipId === song.id" 
-                 class="absolute top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg z-10 whitespace-nowrap">
+                 class="absolute top-8 left-1/2 transform -translate-x-1/2 bg-white text-black text-xs px-2 py-1 rounded shadow-lg z-10 whitespace-nowrap border border-gray-200">
               Tags: {{ songTagCounts[song.id] }}
-              <div class="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-800 rotate-45"></div>
+              <div class="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-white rotate-45 border-l border-t border-gray-200"></div>
             </div>
           </h3>
           <!-- Artist -->
@@ -503,6 +503,7 @@ import { useHowlerPlayer } from '@/composables/useHowlerPlayer'
 import { useSongStore } from '@/stores/songStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useUploadStore } from '@/stores/uploadStore'
+import { supabaseService } from '@/services/supabase.service'
 import WaveformSelectorDual from '@/components/dashboard/WaveformSelectorDual.vue'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 
@@ -551,6 +552,8 @@ const hardDeletingSong = ref<string | null>(null)
 // Tag and status states
 const songTagCounts = ref<{ [key: string]: number }>({})
 const showTagTooltipId = ref<string | null>(null)
+const fetchedTagCounts = ref<Set<string>>(new Set())
+const isLoadingTagCounts = ref(false)
 const openInfoForId = ref<string | null>(null)
 
 // Audio player states - adapt Howler to existing interface
@@ -700,8 +703,60 @@ const retryAudio = async (songId: string) => {
   await toggleSong(song)
 }
 
+// Get tag count for a single song
+const getSongTagCount = async (songId: string) => {
+  try {
+    const { data, error } = await supabaseService.getClient().rpc('get_song_tag_count' as any, {
+      p_song_id: songId
+    })
+    
+    if (error) {
+      console.error('Error fetching tag count:', error)
+      return 0
+    }
+    
+    return (data as number) || 0
+  } catch (error) {
+    console.error('Error fetching tag count:', error)
+    return 0
+  }
+}
+
+// Load tag counts for all songs
+const loadTagCounts = async () => {
+  if (!songStore.songs.length || isLoadingTagCounts.value) return
+  
+  isLoadingTagCounts.value = true
+  
+  try {
+    // Only fetch counts we don't already have (caching)
+    const songsToFetch = songStore.songs.filter(s => !fetchedTagCounts.value.has(s.id))
+    if (songsToFetch.length === 0) return
+
+    const tagCountPromises = songsToFetch.map(async (song) => {
+      const count = await getSongTagCount(song.id)
+      return { songId: song.id, count }
+    })
+    
+    const results = await Promise.all(tagCountPromises)
+    
+    // Update reactive state
+    results.forEach(({ songId, count }) => {
+      songTagCounts.value[songId] = count
+      fetchedTagCounts.value.add(songId)
+    })
+  } finally {
+    isLoadingTagCounts.value = false
+  }
+}
+
+// Show tag tooltip
 const showTagTooltip = (songId: string) => {
-  showTagTooltipId.value = showTagTooltipId.value === songId ? null : songId
+  showTagTooltipId.value = songId
+  // Auto-hide after 3 seconds
+  setTimeout(() => {
+    showTagTooltipId.value = null
+  }, 3000)
 }
 
 const toggleStatusInfo = (songId: string) => {
@@ -848,14 +903,47 @@ watch(activeTab, async (newTab) => {
   }
 })
 
+// Watch for song changes to reload tag counts
+const lastProcessedSignature = ref<string>('')
+const pendingSignature = ref<string | null>(null)
+
+watch(() => songStore.songs.map(s => s.id).join(','), async (newSignature) => {
+  if (!newSignature) return
+
+  // If a load is already in progress, mark pending and exit
+  if (isLoadingTagCounts.value) {
+    pendingSignature.value = newSignature
+    return
+  }
+
+  if (newSignature === lastProcessedSignature.value) return
+
+  isLoadingTagCounts.value = true
+  try {
+    await loadTagCounts()
+    lastProcessedSignature.value = newSignature
+  } finally {
+    isLoadingTagCounts.value = false
+    // If something changed during the load, run once more
+    if (pendingSignature.value && pendingSignature.value !== lastProcessedSignature.value) {
+      const sig = pendingSignature.value
+      pendingSignature.value = null
+      lastProcessedSignature.value = sig
+      await loadTagCounts()
+    }
+  }
+}, { immediate: false })
+
 // Mobile detection
-onMounted(() => {
+onMounted(async () => {
   isMobile.value = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
   
   // Initial fetch
   try {
     songStore.fetchSongs()
     songStore.fetchTrashedSongs()  // Load trash count immediately
+    // Load tag counts after songs are fetched
+    await loadTagCounts()
   } catch (e) {
     console.error('Failed to fetch songs', e)
   }
