@@ -855,6 +855,7 @@ onMounted(() => {
   // Initial fetch
   try {
     songStore.fetchSongs()
+    songStore.fetchTrashedSongs()  // Load trash count immediately
   } catch (e) {
     console.error('Failed to fetch songs', e)
   }
