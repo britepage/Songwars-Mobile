@@ -9,9 +9,12 @@ export const useBattleStore = defineStore('battle', () => {
   // State
   const currentBattle = ref<Battle | null>(null)
   const battleHistory = ref<Battle[]>([])
+  const comparisonSongs = ref<any[]>([])
   const isLoading = ref(false)
   const error = ref<string | null>(null)
   const hasVoted = ref(false)
+  const loadingComparison = ref(false)
+  const comparisonMessage = ref<string | null>(null)
 
   // Getters
   const battleSongs = computed(() => {
@@ -252,48 +255,68 @@ export const useBattleStore = defineStore('battle', () => {
     }
   }
 
-  const startNewBattle = async (genre?: string) => {
-    try {
-      isLoading.value = true
-      error.value = null
+  const fetchRandomComparisonSongs = async (genre?: string) => {
+    loadingComparison.value = true;
+    comparisonMessage.value = 'Picking two random songs...';
+    comparisonSongs.value = []; // Clear previous songs
 
-      // Fetch two random songs for battle
-      let queryBuilder = supabaseService.getClient()
+    try {
+      // Get all active songs IDs for the genre
+      let query = supabaseService.getClient()
+        .from('songs')
+        .select('id')
+        .eq('is_active', true)
+        .eq('status', 'live');
+      
+      if (genre) {
+        query = query.eq('genre', genre);
+      }
+      
+      const { data: songIds, error: idsError } = await query;
+      
+      if (idsError) {
+        throw idsError;
+      }
+
+      if (!songIds || songIds.length < 2) {
+        comparisonMessage.value = `Need at least 2 songs for comparison. Only ${songIds?.length || 0} available.`;
+        return;
+      }
+
+      // Get two random indices
+      const index1 = Math.floor(Math.random() * songIds.length);
+      let index2;
+      do {
+        index2 = Math.floor(Math.random() * songIds.length);
+      } while (index2 === index1);
+
+      // Fetch the two random songs by their IDs
+      const { data: songs, error: songsError } = await supabaseService.getClient()
         .from('songs')
         .select('*')
-        .eq('is_deleted', false)
-        .limit(2)
-
-      if (genre && genre !== 'all') {
-        queryBuilder = queryBuilder.eq('genre', genre)
-      }
-
-      const { data: songs, error: songsError } = await queryBuilder
+        .in('id', [songIds[index1].id, songIds[index2].id]);
 
       if (songsError) {
-        throw songsError
+        throw songsError;
       }
 
-      if (!songs || songs.length < 2) {
-        throw new Error('Not enough songs available for battle')
+      if (!songs || songs.length !== 2) {
+        comparisonMessage.value = 'Failed to retrieve two random songs.';
+        return;
       }
 
-      // Create battle with the two songs
-      const result = await createBattle(songs[0].id, songs[1].id)
-      
-      if (result.success) {
-        // Check if user has already voted
-        await checkUserVote()
-      }
+      // Randomize the order of the two songs
+      const randomizedSongs = Math.random() > 0.5 ? songs : [songs[1], songs[0]];
+      comparisonSongs.value = randomizedSongs;
+      comparisonMessage.value = 'Two random songs retrieved for comparison!';
 
-      return result
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to start new battle'
-      return { success: false, error: error.value }
+    } catch (error: any) {
+      console.error('Error fetching random songs:', error.message);
+      comparisonMessage.value = `An unexpected error occurred: ${error.message}`;
     } finally {
-      isLoading.value = false
+      loadingComparison.value = false;
     }
-  }
+  };
 
   const clearBattle = () => {
     currentBattle.value = null
@@ -305,8 +328,8 @@ export const useBattleStore = defineStore('battle', () => {
     error.value = null
   }
 
-  // Fetch a random battle (alias for startNewBattle)
-  const fetchRandomBattle = startNewBattle
+  // Fetch a random battle (alias for fetchRandomComparisonSongs)
+  const fetchRandomBattle = fetchRandomComparisonSongs
 
   // Record vote (alias for voteForSong)
   const recordVote = voteForSong
@@ -315,9 +338,12 @@ export const useBattleStore = defineStore('battle', () => {
     // State
     currentBattle,
     battleHistory,
+    comparisonSongs,
     isLoading,
     error,
     hasVoted,
+    loadingComparison,
+    comparisonMessage,
     
     // Getters
     battleSongs,
@@ -334,7 +360,7 @@ export const useBattleStore = defineStore('battle', () => {
     fetchRandomBattle,
     checkUserVote,
     getBattleStats,
-    startNewBattle,
+    fetchRandomComparisonSongs,
     clearBattle,
     clearError,
   }

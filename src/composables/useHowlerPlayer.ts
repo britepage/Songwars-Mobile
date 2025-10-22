@@ -6,6 +6,7 @@ interface HowlerPlayerOptions {
   audioUrl: string
   clipStartTime?: number      // Seek to this time (seconds)
   autoStopAfter?: number       // Auto-stop duration (seconds)
+  battleMode?: boolean        // NEW: Battle-specific flag
 }
 
 export function useHowlerPlayer() {
@@ -166,6 +167,21 @@ export function useHowlerPlayer() {
       autoStopTimeout = null
     }
   }
+
+  // Battle-specific methods
+  const playBattleSong = async (songId: string, audioUrl: string, clipStartTime: number = 0) => {
+    await togglePlay({
+      songId,
+      audioUrl,
+      clipStartTime,
+      autoStopAfter: 30,  // Battle-specific 30-second limit
+      battleMode: true
+    })
+  }
+
+  const stopBattleAudio = () => {
+    cleanup()
+  }
   
   onUnmounted(() => {
     cleanup()
@@ -186,7 +202,11 @@ export function useHowlerPlayer() {
     pause,
     stop,
     seek,
-    cleanup
+    cleanup,
+    
+    // Battle-specific methods
+    playBattleSong,
+    stopBattleAudio
   }
 }
 
