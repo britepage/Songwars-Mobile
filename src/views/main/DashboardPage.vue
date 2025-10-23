@@ -6,9 +6,9 @@
         
         <!-- Combined Profile Header + Battle Section -->
         <div v-if="!battleStarted" class="p-4 md:p-6 theme-bg-primary pt-[6em]">
-          <div class="max-w-6xl mx-auto flex flex-col items-center space-y-3">
+          <div class="max-w-6xl mx-auto flex flex-col items-center">
             <!-- Profile Picture - Centered and Clickable -->
-            <div class="relative cursor-pointer group" @click="goToProfile">
+            <div class="relative cursor-pointer group mb-[12px]" @click="goToProfile">
               <div class="w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden bg-gray-200 border-4 border-[#ffd200] shadow-lg transition-transform duration-200 group-hover:scale-105">
                 <img
                   v-if="profileStore.profile?.avatar_url"
@@ -57,13 +57,9 @@
             
             <!-- Jump into Battle Section (moved here) -->
             <div class="mt-8 w-full max-w-md">
-              <h2 class="text-center text-2xl font-bold theme-text-primary mb-2">
+              <h2 class="text-center text-2xl font-bold theme-text-primary mb-4">
                 Jump into Battle
               </h2>
-              <p class="text-center theme-text-secondary mb-6">
-                Choose a genre and let the battle begin!
-              </p>
-              
               <!-- Genre Selection Listbox -->
               <Listbox v-model="selectedGenre">
                 <div ref="genreSelectRef" class="relative w-full max-w-md mx-auto">
@@ -72,7 +68,7 @@
                     role="button" 
                     tabindex="0"
                     @click="updateGenreOptionsPosition"
-                    class="bg-white border-2 border-black rounded shadow-[3px_3px_0_#000] px-4 py-3 text-black text-base font-medium focus:outline-none focus:ring-2 focus:ring-[#ffd200] w-full text-center flex items-center justify-center cursor-pointer hover:shadow-[4px_4px_0_#000] hover:translate-x-[-1px] hover:translate-y-[-1px] transition-all duration-200"
+                    class="bg-white border-2 border-black rounded shadow-[3px_3px_0_#000] px-4 py-3 text-black text-base font-medium focus:outline-none w-full text-center flex items-center justify-center cursor-pointer hover:shadow-[4px_4px_0_#000] hover:translate-x-[-1px] hover:translate-y-[-1px] transition-all duration-200 max-w-[280px] m-auto"
                   >
                     <span>{{ selectedGenre || 'Select Genre' }}</span>
                     <svg class="ml-2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -87,8 +83,8 @@
                     >
                       <ListboxOption
                         v-for="genre in genres"
-                        :key="genre"
-                        :value="genre"
+                        :key="typeof genre === 'string' ? genre : genre.genre"
+                        :value="typeof genre === 'string' ? genre : genre.genre"
                         as="template"
                         v-slot="{ active, selected }"
                       >
@@ -99,7 +95,7 @@
                             selected && 'font-semibold bg-[#ffd200]/20'
                           ]"
                         >
-                          {{ genre }}
+                          {{ typeof genre === 'string' ? genre : genre.genre }}
                         </li>
                       </ListboxOption>
                     </ListboxOptions>
@@ -112,7 +108,7 @@
                 expand="block"
                 @click="startBattle"
                 :disabled="loading || !selectedGenre || loadingGenres || genres.length === 0"
-                class="start-battle-btn mt-4"
+                class="start-battle-btn mt-6 max-w-[280px] m-auto"
               >
                 <ion-icon :icon="dice" slot="start" />
                 {{ loading ? 'Finding Songs...' : 'Start Battle' }}
@@ -315,6 +311,8 @@ import { useHowlerPlayer } from '@/composables/useHowlerPlayer'
 import { useBattleAudio } from '@/composables/useBattleAudio'
 import confetti from 'canvas-confetti'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
+import { supabaseService } from '@/services/supabase.service'
+import { MASTER_GENRES } from '@/utils/genres'
 
 // Import battle assets
 import wheelImage from '@/assets/images/wheel.png'
@@ -337,7 +335,7 @@ const battleAudio = useBattleAudio()
 const battleStarted = ref(false)
 const battlePhase = ref<'loading' | 'roulette' | 'recordPlayers' | 'complete'>('loading')
 const selectedGenre = ref('')
-const genres = ref<string[]>([])
+const genres = ref<(string | { genre: string })[]>([])
 const songs = ref<any[]>([])
 const loading = ref(false)
 const loadingGenres = ref(false)
@@ -656,13 +654,24 @@ const handleUploadComplete = () => {
 }
 
 // Load available genres
-const loadGenres = async () => {
-  loadingGenres.value = true
+// Function to fetch available genres for battles (matches production)
+const fetchAvailableGenres = async () => {
   try {
-    await uploadStore.loadBattleReadyGenres()
-    genres.value = uploadStore.battleReadyGenres.map(item => item.genre)
-  } catch (error) {
-    console.error('Failed to load genres:', error)
+    loadingGenres.value = true
+    const { data, error } = await supabaseService.getClient().rpc('get_battle_available_genres' as any)
+    
+    if (error) {
+      console.error('Error fetching available genres:', error)
+      // Fallback to master genre list if RPC fails
+      genres.value = [...MASTER_GENRES]
+    } else {
+      genres.value = (data as (string | { genre: string })[]) || []
+      console.log('Available genres for battles:', genres.value)
+    }
+  } catch (err) {
+    console.error('Exception fetching available genres:', err)
+    // Fallback to master genre list
+    genres.value = [...MASTER_GENRES]
   } finally {
     loadingGenres.value = false
   }
@@ -676,7 +685,7 @@ onMounted(async () => {
   }
   
   // Load genres for battle
-  await loadGenres()
+  await fetchAvailableGenres()
 })
 
 onUnmounted(() => {
@@ -880,12 +889,10 @@ onUnmounted(() => {
 
 
 .start-battle-btn {
-  margin-top: 1rem;
   --background: #ffd200;
   --color: #000000;
   --border-radius: 0.5rem;
   width: 100%;
-  max-width: 28rem;
   margin-left: auto;
   margin-right: auto;
 }
