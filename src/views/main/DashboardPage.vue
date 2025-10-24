@@ -5,7 +5,11 @@
       <div v-if="activeSection === 'battle'" class="battle-section">
         
         <!-- Combined Profile Header + Battle Section -->
-        <div v-if="!battleStarted" class="p-4 md:p-6 theme-bg-primary pt-[6em]">
+        <div 
+          v-if="!battleStarted" 
+          class="p-4 md:p-6 theme-bg-primary pt-[6em] start-battle-screen"
+          :class="{ 'screen-fade-out': startScreenFadingOut }"
+        >
           <div class="max-w-6xl mx-auto flex flex-col items-center">
             <!-- Profile Picture - Centered and Clickable -->
             <div class="relative cursor-pointer group mb-[12px]" @click="goToProfile">
@@ -121,7 +125,10 @@
         <div 
           v-if="battleStarted && battlePhase === 'roulette'" 
           class="roulette-container"
-          :class="rouletteFadingOut ? 'roulette-fade-out' : 'roulette-fade-in'"
+          :class="{ 
+            'wheel-fade-in': wheelFadingIn,
+            'roulette-fade-out': rouletteFadingOut 
+          }"
         >
           <div class="wheel-wrapper">
             <!-- Arrow pointer above the wheel -->
@@ -144,7 +151,11 @@
         </div>
 
         <!-- Phase 3: Battle Interface -->
-        <div v-if="battlePhase === 'recordPlayers'" class="battle-interface">
+        <div 
+          v-if="battlePhase === 'recordPlayers'" 
+          class="battle-interface"
+          :class="{ 'battle-fade-in': tapeSectionFadingIn }"
+        >
           <div class="battle-songs">
             <!-- Song A -->
             <div class="song-section">
@@ -282,6 +293,34 @@
       </div>
     </ion-content>
   </ion-page>
+
+  <!-- Error Screen -->
+  <div v-if="battlePhase === 'error'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white dark:bg-gray-900 rounded-xl max-w-sm w-full mx-4">
+      <div class="p-6 text-center">
+        <div class="error-icon text-6xl mb-4">⚠️</div>
+        <h2 class="text-xl font-bold theme-text-primary mb-4">Battle Failed</h2>
+        <p class="theme-text-secondary mb-6">
+          {{ battleStatus || 'Unable to start battle. Please try again.' }}
+        </p>
+        
+        <div class="flex flex-col space-y-3">
+          <button 
+            @click="retryBattle" 
+            class="w-full px-4 py-3 bg-[#ffd200] text-black rounded-lg hover:bg-[#e6c200] font-medium"
+          >
+            🔄 Try Again
+          </button>
+          <button 
+            @click="resetBattle" 
+            class="w-full px-4 py-3 bg-gray-200 dark:bg-gray-700 theme-text-primary rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-medium"
+          >
+            ✕ Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -298,12 +337,18 @@ import {
   IonSelectOption
 } from '@ionic/vue'
 import { dice } from 'ionicons/icons'
-import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
+import { ref, computed, onMounted, watch, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useBattleStore } from '@/stores/songComparisonStore'
 import { useSongStore } from '@/stores/songStore'
 import { useProfileStore } from '@/stores/profileStore'
 import { useAuthStore } from '@/stores/authStore'
+
+// Declare Ionic Vue prop to prevent warnings
+defineProps({
+  registerIonPage: Function
+})
+
 import { useUploadStore } from '@/stores/uploadStore'
 import TapePlayer from '@/components/core/TapePlayer.vue'
 import SongUploader from '@/components/dashboard/SongUploader.vue'
@@ -333,12 +378,27 @@ const battleAudio = useBattleAudio()
 
 // Battle flow state
 const battleStarted = ref(false)
-const battlePhase = ref<'loading' | 'roulette' | 'recordPlayers' | 'complete'>('loading')
+const battlePhase = ref<'loading' | 'roulette' | 'recordPlayers' | 'complete' | 'error'>('loading')
 const selectedGenre = ref('')
 const genres = ref<(string | { genre: string })[]>([])
 const songs = ref<any[]>([])
 const loading = ref(false)
 const loadingGenres = ref(false)
+const battleStatus = ref('')
+
+// Asset preloading state
+const assetsPreloaded = ref(false)
+const preloadedAssets = ref<{
+  rouletteSound: ArrayBuffer | null
+}>({
+  rouletteSound: null
+})
+
+// User data state
+const taggedSongIds = ref<Set<string>>(new Set())
+const userFlags = ref<Record<string, Record<'hate_speech' | 'copyright', boolean>>>({})
+const audioAError = ref(false)
+const audioBError = ref(false)
 
 // Headless UI Listbox positioning
 const genreSelectRef = ref<HTMLElement | null>(null)
@@ -364,6 +424,16 @@ const genreOptionsStyle = computed(() => {
 const wheelRotation = ref(0)
 const wheelAnimating = ref(false)
 const rouletteFadingOut = ref(false)
+const tapeSectionFadingIn = ref(false)
+
+// Add new fade states
+const startScreenFadingOut = ref(false)
+const wheelFadingIn = ref(false)
+
+// Animation cleanup - handles both fade states atomically
+const cleanupAnimation = () => {
+  tapeSectionFadingIn.value = false
+}
 
 // Qualification tracking
 const songAQualified = ref(false)
@@ -402,29 +472,116 @@ watch(() => route.query.section, (newSection) => {
 
 // Battle methods
 const startBattle = async () => {
-  if (!selectedGenre.value) return
+  if (loading.value || !selectedGenre.value) return
   
-  battleStarted.value = true
-  battlePhase.value = 'roulette'
   loading.value = true
   
+  // STEP 1: Fade out start screen
+  startScreenFadingOut.value = true
+  
+  // Wait for start screen to fade out (animation completes)
+  await new Promise(resolve => setTimeout(resolve, 400))
+  
   try {
-    // Start roulette animation
-    await runRouletteAnimation()
-    
-    // Fetch songs using store
-    await battleStore.fetchRandomComparisonSongs(selectedGenre.value)
-    if (battleStore.comparisonSongs.length === 2) {
-      songs.value = battleStore.comparisonSongs
-      battlePhase.value = 'recordPlayers'
-    } else {
-      console.error('Failed to fetch songs:', battleStore.comparisonMessage)
-      resetBattle()
+    // STEP 2: Wait for assets if not ready yet
+    if (!assetsPreloaded.value) {
+      console.log('⏳ Waiting for assets to preload...')
+      battleStatus.value = 'Loading assets...'
+      
+      // Wait up to 10 seconds for assets to load
+      const startWait = Date.now()
+      while (!assetsPreloaded.value && Date.now() - startWait < 10000) {
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
+      
+      if (!assetsPreloaded.value) {
+        console.warn('⚠️ Assets not preloaded, proceeding anyway')
+        assetsPreloaded.value = true
+      }
     }
+    
+    battleStatus.value = 'Finding songs...'
+    
+    // STEP 2: Fetch random songs (Network calls 1 & 2)
+    console.log('About to call fetchRandomComparisonSongs...')
+    await battleStore.fetchRandomComparisonSongs(selectedGenre.value)
+    console.log('fetchRandomComparisonSongs completed')
+    
+    // Get songs from store
+    songs.value = battleStore.comparisonSongs
+    
+    if (songs.value.length !== 2) {
+      battlePhase.value = 'error'  // Trigger error modal
+      battleStatus.value = 'Failed to get songs for battle'
+      loading.value = false
+      console.error('Battle failed: not enough songs')
+      return
+    }
+    
+    // STEP 3: Load tagged songs (Network call 3)
+    await loadTaggedSongs()
+    
+    // STEP 4: User flags load automatically via watcher (Network call 4)
+    
+    // STEP 5: Don't initialize battle audio yet
+    // Audio will be played when user clicks play buttons
+    
+    battleStarted.value = true
+    
+    // Reset fade flag (cleanup)
+    startScreenFadingOut.value = false
+    
+    loading.value = false
+    
+    // Reset battle state
+    songAQualified.value = false
+    songBQualified.value = false
+    songAListeningTime.value = 0
+    songBListeningTime.value = 0
+    isVoting.value = false
+    voteSubmitted.value = false
+    
+    // STEP 6: Set phase to roulette
+    battlePhase.value = 'roulette'
+    battleStatus.value = 'Spinning for battle...'
+    
+    // Wait for Vue to update DOM
+    await nextTick()
+    console.log('DOM updated after nextTick')
+    
+    // STEP 7: Fade in the wheel
+    wheelFadingIn.value = true
+    
+    // Wait for wheel fade-in (400ms)
+    await new Promise(resolve => setTimeout(resolve, 400))
+    
+    // Reset fade-in flag
+    wheelFadingIn.value = false
+    
+    // Wait for browser to paint (50ms best practice)
+    await new Promise(resolve => setTimeout(resolve, 50))
+    console.log('Browser paint completed')
+    
+    // STEP 8: NOW start animation - DOM is guaranteed rendered
+    console.log('Starting roulette animation...')
+    await runRouletteAnimation()
+    console.log('Roulette animation completed')
+    
+    // STEP 8: Transition to record players (flag already reset in runRouletteAnimation)
+    battlePhase.value = 'recordPlayers'
+    tapeSectionFadingIn.value = true
+    battleStatus.value = 'Choose your battle!'
+    console.log('Moving to record players phase')
+    
+    // Reset tape fade-in flag after animation completes
+    setTimeout(() => {
+      tapeSectionFadingIn.value = false
+    }, 500) // Increased to 500ms to match production
+    
   } catch (error) {
-    console.error('Failed to start battle:', error)
-    resetBattle()
-  } finally {
+    console.error('Error starting battle:', error)
+    battlePhase.value = 'error'  // Trigger error modal
+    battleStatus.value = 'Error starting battle'
     loading.value = false
   }
 }
@@ -445,7 +602,7 @@ const runRouletteAnimation = () => {
     const startRotation = wheelRotation.value
     const finalRotation = 360 * 5 + Math.random() * 360 // 5 full spins + random final position
     const startTime = Date.now()
-    const duration = 2000 // 2 seconds
+    const duration = 3000 // 3 seconds (matches production)
     
     const animate = () => {
       const elapsed = Date.now() - startTime
@@ -474,10 +631,11 @@ const runRouletteAnimation = () => {
         
         // Wait for fade out to complete
         setTimeout(() => {
+          // Reset fade flag BEFORE resolving
           rouletteFadingOut.value = false
           battleAudio.stopRouletteSound()
           resolve()
-        }, 400)
+        }, 500) // Increased to 500ms to match production
       }
     }
     
@@ -621,7 +779,27 @@ const showCelebration = () => {
   }, 3000)
 }
 
+const retryBattle = async () => {
+  console.log('🔄 Retrying battle with new songs')
+  
+  // Reset all states
+  battlePhase.value = 'loading'
+  battleStatus.value = 'Finding songs...'
+  audioAError.value = false
+  audioBError.value = false
+  songs.value = []
+  
+  // Start fresh battle
+  await startBattle()
+}
+
 const resetBattle = () => {
+  // Reset all fade states
+  startScreenFadingOut.value = false
+  wheelFadingIn.value = false
+  rouletteFadingOut.value = false
+  tapeSectionFadingIn.value = false
+  
   battleStarted.value = false
   battlePhase.value = 'loading'
   selectedGenre.value = ''
@@ -677,7 +855,91 @@ const fetchAvailableGenres = async () => {
   }
 }
 
+// Asset preloading function
+const preloadBattleAssets = async () => {
+  try {
+    console.log('🔄 Preloading battle assets...')
+    
+    // Preload roulette.wav
+    const response = await fetch('/sounds/roulette.wav')
+    const buffer = await response.arrayBuffer()
+    preloadedAssets.value.rouletteSound = buffer
+    
+    console.log('✅ Battle assets preloaded')
+    assetsPreloaded.value = true
+  } catch (error) {
+    console.error('❌ Failed to preload assets:', error)
+    // Don't block app - proceed with degraded experience
+    assetsPreloaded.value = true
+  }
+}
+
+// User data loading functions
+const loadTaggedSongs = async () => {
+  if (!authStore.user?.id) return
+  
+  try {
+    const { data, error } = await supabaseService.getClient()
+      .from('user_tags' as any)
+      .select('song_id')
+      .eq('user_id', authStore.user.id)
+    
+    if (error) {
+      console.error('Error loading tagged songs:', error)
+      return
+    }
+    
+    taggedSongIds.value = new Set(data?.map((item: any) => item.song_id) || [])
+  } catch (error) {
+    console.error('Error loading tagged songs:', error)
+  }
+}
+
+const loadUserFlags = async () => {
+  if (!authStore.user?.id || songs.value.length === 0) return
+  
+  try {
+    const songIds = songs.value.map(song => song.id)
+    const { data, error } = await supabaseService.getClient()
+      .from('song_flags')
+      .select('song_id, category')
+      .eq('user_id', authStore.user.id)
+      .in('song_id', songIds)
+    
+    if (error) {
+      console.error('Error loading user flags:', error)
+      return
+    }
+    
+    // Reset user flags
+    userFlags.value = {}
+    
+    // Process flags data
+    data?.forEach((flag: any) => {
+      if (!userFlags.value[flag.song_id]) {
+        userFlags.value[flag.song_id] = {
+          hate_speech: false,
+          copyright: false
+        }
+      }
+      userFlags.value[flag.song_id][flag.category as 'hate_speech' | 'copyright'] = true
+    })
+  } catch (error) {
+    console.error('Error loading user flags:', error)
+  }
+}
+
+// Watch for songs changes to load user flags
+watch(songs, () => {
+  if (songs.value.length > 0) {
+    loadUserFlags() // Not awaited - runs in background
+  }
+}, { immediate: true })
+
 onMounted(async () => {
+  // Start preloading assets immediately
+  preloadBattleAssets()
+  
   // Fetch profile first
   if (authStore.user) {
     console.log('[Dashboard] Fetching profile for user:', authStore.user.id)
@@ -932,30 +1194,30 @@ onUnmounted(() => {
 .wheel-image {
   width: 100%;
   height: 100%;
-  transition: transform 2000ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  will-change: transform;
+  will-change: transform; /* Keep GPU acceleration */
+  /* Removed CSS transition - using JavaScript animation only */
 }
 
 .wheel-spinning {
   will-change: transform;
 }
 
-.roulette-fade-in {
-  animation: fadeIn 0.5s ease-in;
-}
-
 .roulette-fade-out {
-  animation: fadeOut 0.4s ease-out;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.9); }
-  to { opacity: 1; transform: scale(1); }
+  animation: fadeOut 0.5s ease-out;
 }
 
 @keyframes fadeOut {
-  from { opacity: 1; transform: scale(1); }
-  to { opacity: 0; transform: scale(0.9); }
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.battle-fade-in {
+  animation: battleFadeIn 0.5s ease-in;
+}
+
+@keyframes battleFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* Battle Interface */
@@ -1132,4 +1394,21 @@ onUnmounted(() => {
     height: 400px;
   }
 }
+
+/* Start screen fade out */
+.screen-fade-out {
+  animation: fadeOut 0.4s ease-out forwards;
+}
+
+/* Wheel fade in */
+.wheel-fade-in {
+  animation: fadeIn 0.4s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Note: fadeOut keyframe already exists at line 1167 */
 </style>

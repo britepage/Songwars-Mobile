@@ -16,7 +16,7 @@
       <!-- Left gear -->
       <div 
         class="left-gear"
-        :class="{ 'spinning': isPlaying }"
+        :style="{ transform: `rotate(${leftReelRotation}deg)` }"
       >
         <img v-if="gearImage" :src="gearImage" alt="Gear" class="gear-image" />
         <div v-else class="gear-placeholder"></div>
@@ -25,7 +25,7 @@
       <!-- Right gear -->
       <div 
         class="right-gear"
-        :class="{ 'spinning': isPlaying }"
+        :style="{ transform: `rotate(${rightReelRotation}deg)` }"
       >
         <img v-if="gearImage" :src="gearImage" alt="Gear" class="gear-image" />
         <div v-else class="gear-placeholder"></div>
@@ -86,7 +86,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch, onUnmounted } from 'vue'
 import { IonButton, IonIcon } from '@ionic/vue'
 import { play, pause } from 'ionicons/icons'
 
@@ -133,6 +133,11 @@ const emit = defineEmits<{
   'duration-select': [duration: number | string]
 }>()
 
+// Gear rotation state
+const leftReelRotation = ref(0)
+const rightReelRotation = ref(0)
+let animationFrame: number | null = null
+
 // Computed properties for tape images
 const tapeImage = computed(() => {
   return props.side === 'A' ? tapebgA : tapebgB
@@ -151,6 +156,47 @@ const formatTime = (seconds: number) => {
   const secs = Math.floor(seconds % 60)
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
+
+// Gear animation control
+const startReelAnimation = () => {
+  const animate = () => {
+    leftReelRotation.value += 3
+    rightReelRotation.value += 3
+    
+    if (leftReelRotation.value >= 360) {
+      leftReelRotation.value = 0
+    }
+    if (rightReelRotation.value >= 360) {
+      rightReelRotation.value = 0
+    }
+    
+    animationFrame = requestAnimationFrame(animate)
+  }
+  animate()
+}
+
+const stopReelAnimation = () => {
+  if (animationFrame) {
+    cancelAnimationFrame(animationFrame)
+    animationFrame = null
+  }
+  leftReelRotation.value = 0
+  rightReelRotation.value = 0
+}
+
+// Watch isPlaying prop to control gear animation
+watch(() => props.isPlaying, (playing) => {
+  if (playing) {
+    startReelAnimation()
+  } else {
+    stopReelAnimation()
+  }
+})
+
+// Cleanup on unmount
+onUnmounted(() => {
+  stopReelAnimation()
+})
 </script>
 
 <style scoped>
@@ -195,34 +241,20 @@ const formatTime = (seconds: number) => {
 /* Gear positioning (exact from TapePlayer.vue) */
 .left-gear {
   position: absolute;
-  left: 21.4%;
-  top: 40.5%;
+  left: 21.6%;
+  top: 38.5%;
   width: 28px;
   height: 28px;
 }
 
 .right-gear {
   position: absolute;
-  left: 65.0%;
-  top: 40.5%;
+  left: 64.7%;
+  top: 38.5%;
   width: 28px;
   height: 28px;
 }
 
-/* Gear rotation animation */
-@keyframes spin-gear {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.left-gear.spinning,
-.right-gear.spinning {
-  animation: spin-gear 2s linear infinite;
-}
 
 .play-button {
   margin-top: 1rem;

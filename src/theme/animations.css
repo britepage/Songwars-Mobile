@@ -68,23 +68,23 @@
   gap: 0.5rem;
 }
 
-/* Gear positioning (exact from TapePlayer.vue) */
+/* Gear positioning - animation controlled by component */
 .left-gear {
   position: absolute;
-  left: 21.4%;
-  top: 40.5%;
+  left: 21.6%;
+  top: 38.5%;
   width: 28px;
   height: 28px;
-  animation: spin-gear 2s linear infinite;
+  /* Removed animation - now controlled via JavaScript */
 }
 
 .right-gear {
   position: absolute;
-  left: 65.0%;
-  top: 40.5%;
+  left: 64.7%;
+  top: 38.5%;
   width: 28px;
   height: 28px;
-  animation: spin-gear 2s linear infinite;
+  /* Removed animation - now controlled via JavaScript */
 }
 
 /* Checkmark Scale Animation for Upload Success */
