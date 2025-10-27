@@ -169,12 +169,12 @@ export function useHowlerPlayer() {
   }
 
   // Battle-specific methods
-  const playBattleSong = async (songId: string, audioUrl: string, clipStartTime: number = 0) => {
+  const playBattleSong = async (songId: string, audioUrl: string, clipStartTime: number = 0, autoStopAfter?: number) => {
     await togglePlay({
       songId,
       audioUrl,
       clipStartTime,
-      autoStopAfter: 30,  // Battle-specific 30-second limit
+      autoStopAfter,  // Use provided duration or undefined for no limit
       battleMode: true
     })
   }

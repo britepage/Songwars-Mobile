@@ -156,7 +156,7 @@
           class="battle-interface"
           :class="{ 'battle-fade-in': tapeSectionFadingIn }"
         >
-          <div class="battle-songs">
+          <div class="battle-songs pb-[11em] pt-[8em]">
             <!-- Song A -->
             <div class="song-section">
               <h3 class="song-label">Song A</h3>
@@ -167,29 +167,35 @@
                 :progress="audioA.progress.value"
                 :current-time="audioA.currentTime.value"
                 :duration="30"
-                :show-progress="true"
+                :show-progress="selectedPlayOptionA === 'full'"
                 :show-duration-options="true"
                 :side="'A'"
-                :selected-duration="selectedPlayOptionA"
+                :selected-duration="selectedPlayOptionA === '15s' ? 15 : selectedPlayOptionA === '30s' ? 30 : selectedPlayOptionA === 'full' ? 'full' : null"
                 @play="playSongA"
-                @duration-select="(duration) => selectDurationOption(0, duration)"
+                @seek="(percentage) => seekSong(0, percentage)"
+                @duration-select="(duration) => {
+                  if (duration === 15) playSongClip(0, 15)
+                  else if (duration === 30) playSongClip(0, 30)
+                  else if (duration === 'full') playFullSong(0)
+                }"
               />
-              
-              <!-- Song Information -->
-              <div class="song-info">
-                <h4 class="song-title">{{ songs[0]?.title }}</h4>
-                <p class="song-artist">{{ songs[0]?.artist }}</p>
-                <p class="song-genre">{{ songs[0]?.genre }}</p>
-              </div>
               
               <!-- Status Indicator -->
               <div class="status-indicator">
                 <span v-if="songAQualified" class="qualified">
                   ● Song A Ready
                 </span>
-                <span v-else class="not-qualified">
-                  Listen to qualify
-                </span>
+              </div>
+              
+              <!-- Vote Button for Song A -->
+              <div v-if="canProceedToVoting" class="vote-button-container">
+                <ion-button 
+                  @click="voteForSong('A')"
+                  :disabled="isVoting || voteSubmitted"
+                  class="bigbutton bigbutton-medium vote-btn-a !p-0"
+                >
+                  Vote for Song A
+                </ion-button>
               </div>
             </div>
             
@@ -208,49 +214,37 @@
                 :progress="audioB.progress.value"
                 :current-time="audioB.currentTime.value"
                 :duration="30"
-                :show-progress="true"
+                :show-progress="selectedPlayOptionB === 'full'"
                 :show-duration-options="true"
                 :side="'B'"
-                :selected-duration="selectedPlayOptionB"
+                :selected-duration="selectedPlayOptionB === '15s' ? 15 : selectedPlayOptionB === '30s' ? 30 : selectedPlayOptionB === 'full' ? 'full' : null"
                 @play="playSongB"
-                @duration-select="(duration) => selectDurationOption(1, duration)"
+                @seek="(percentage) => seekSong(1, percentage)"
+                @duration-select="(duration) => {
+                  if (duration === 15) playSongClip(1, 15)
+                  else if (duration === 30) playSongClip(1, 30)
+                  else if (duration === 'full') playFullSong(1)
+                }"
               />
-              
-              <!-- Song Information -->
-              <div class="song-info">
-                <h4 class="song-title">{{ songs[1]?.title }}</h4>
-                <p class="song-artist">{{ songs[1]?.artist }}</p>
-                <p class="song-genre">{{ songs[1]?.genre }}</p>
-              </div>
               
               <!-- Status Indicator -->
               <div class="status-indicator">
                 <span v-if="songBQualified" class="qualified">
                   ● Song B Ready
                 </span>
-                <span v-else class="not-qualified">
-                  Listen to qualify
-                </span>
+              </div>
+              
+              <!-- Vote Button for Song B -->
+              <div v-if="canProceedToVoting" class="vote-button-container">
+                <ion-button 
+                  @click="voteForSong('B')"
+                  :disabled="isVoting || voteSubmitted"
+                  class="bigbutton bigbutton-medium vote-btn-b !p-0"
+                >
+                  Vote for Song B
+                </ion-button>
               </div>
             </div>
-          </div>
-          
-          <!-- Vote Buttons -->
-          <div v-if="canProceedToVoting" class="vote-buttons">
-            <ion-button 
-              @click="voteForSong('A')"
-              :disabled="isVoting || voteSubmitted"
-              class="vote-btn vote-btn-a"
-            >
-              Vote for Song A
-            </ion-button>
-            <ion-button 
-              @click="voteForSong('B')"
-              :disabled="isVoting || voteSubmitted"
-              class="vote-btn vote-btn-b"
-            >
-              Vote for Song B
-            </ion-button>
           </div>
         </div>
 
@@ -440,6 +434,10 @@ const songAQualified = ref(false)
 const songBQualified = ref(false)
 const songAListeningTime = ref(0)
 const songBListeningTime = ref(0)
+
+// Watcher references for cleanup
+let songAWatcher: (() => void) | null = null
+let songBWatcher: (() => void) | null = null
 
 // Playback options
 const selectedPlayOptionA = ref<'15s' | '30s' | 'full' | null>(null)
@@ -660,12 +658,22 @@ const playSongA = async () => {
     audioB.pause()
   }
   
+  // Determine playback parameters based on selected duration
+  const song = songs.value[0]
+  let clipStartTime = song.clip_start_time || 0
+  let autoStopAfter: number | undefined = undefined
+  
+  if (selectedPlayOptionA.value === '15s') {
+    autoStopAfter = 15
+  } else if (selectedPlayOptionA.value === '30s') {
+    autoStopAfter = 30
+  } else if (selectedPlayOptionA.value === 'full') {
+    clipStartTime = 0
+    autoStopAfter = undefined
+  }
+  
   // Play Song A with battle mode
-  await audioA.playBattleSong(
-    songs.value[0].id,
-    songs.value[0].url,
-    songs.value[0].clip_start_time || 0
-  )
+  await audioA.playBattleSong(song.id, song.url, clipStartTime, autoStopAfter)
   
   // Track listening time for qualification
   trackListeningTime(0)
@@ -679,66 +687,164 @@ const playSongB = async () => {
     audioA.pause()
   }
   
+  // Determine playback parameters based on selected duration
+  const song = songs.value[1]
+  let clipStartTime = song.clip_start_time || 0
+  let autoStopAfter: number | undefined = undefined
+  
+  if (selectedPlayOptionB.value === '15s') {
+    autoStopAfter = 15
+  } else if (selectedPlayOptionB.value === '30s') {
+    autoStopAfter = 30
+  } else if (selectedPlayOptionB.value === 'full') {
+    clipStartTime = 0
+    autoStopAfter = undefined
+  }
+  
   // Play Song B with battle mode
-  await audioB.playBattleSong(
-    songs.value[1].id,
-    songs.value[1].url,
-    songs.value[1].clip_start_time || 0
-  )
+  await audioB.playBattleSong(song.id, song.url, clipStartTime, autoStopAfter)
   
   // Track listening time for qualification
   trackListeningTime(1)
 }
 
-const selectDurationOption = (songIndex: number, duration: number | string) => {
-  if (songIndex === 0) {
-    selectedPlayOptionA.value = duration as '15s' | '30s' | 'full'
-  } else {
-    selectedPlayOptionB.value = duration as '15s' | '30s' | 'full'
-  }
-  
-  // Play the song with selected duration
+const playSongClip = async (songIndex: number, duration: number) => {
   const song = songs.value[songIndex]
   if (!song?.url) return
   
-  const audio = songIndex === 0 ? audioA : audioB
-  const otherAudio = songIndex === 0 ? audioB : audioA
-  
-  // Stop other song
+  // Stop any currently playing audio from the other song
+  const otherSongIndex = songIndex === 0 ? 1 : 0
+  const otherAudio = otherSongIndex === 0 ? audioA : audioB
   if (otherAudio.isPlaying.value) {
     otherAudio.pause()
   }
   
-  // Play current song with battle mode
-  audio.playBattleSong(song.id, song.url, song.clip_start_time || 0)
+  // Set the selected play option
+  const newOption = duration === 15 ? '15s' : '30s'
+  if (songIndex === 0) {
+    selectedPlayOptionA.value = newOption
+  } else {
+    selectedPlayOptionB.value = newOption
+  }
+  
+  // Play the clip
+  const audio = songIndex === 0 ? audioA : audioB
+  const clipStartTime = song.clip_start_time || 0
+  
+  // CRITICAL: Cleanup to destroy old Howl instance and prevent memory leaks
+  audio.cleanup()
+  
+  await audio.playBattleSong(song.id, song.url, clipStartTime, duration)
   
   // Track listening time for qualification
   trackListeningTime(songIndex)
 }
 
+const playFullSong = async (songIndex: number) => {
+  const song = songs.value[songIndex]
+  if (!song?.url) return
+  
+  // Stop any currently playing audio from the other song
+  const otherSongIndex = songIndex === 0 ? 1 : 0
+  const otherAudio = otherSongIndex === 0 ? audioA : audioB
+  if (otherAudio.isPlaying.value) {
+    otherAudio.pause()
+  }
+  
+  // Set the selected play option
+  const newOption = 'full'
+  if (songIndex === 0) {
+    selectedPlayOptionA.value = newOption
+  } else {
+    selectedPlayOptionB.value = newOption
+  }
+  
+  // Play from beginning with no timeout
+  const audio = songIndex === 0 ? audioA : audioB
+  
+  // CRITICAL: Cleanup to destroy old Howl instance and prevent memory leaks
+  audio.cleanup()
+  
+  await audio.playBattleSong(song.id, song.url, 0, undefined)
+  
+  // Track listening time for qualification
+  trackListeningTime(songIndex)
+}
+
+const seekSong = (songIndex: number, percentage: number) => {
+  const audio = songIndex === 0 ? audioA : audioB
+  
+  // Only allow seeking if audio has been loaded (duration exists)
+  if (!audio.duration.value) return
+  
+  // Calculate target time based on percentage and duration
+  const targetTime = (percentage / 100) * audio.duration.value
+  
+  // Use Howler's seek method to jump to the target time
+  audio.seek(targetTime)
+}
+
 const trackListeningTime = (songIndex: number) => {
   const audio = songIndex === 0 ? audioA : audioB
+  const song = songs.value[songIndex]
+  
+  // Get the clip start time for this song
+  const clipStartTime = song?.clip_start_time || 0
+  
+  // Reset qualification state for this song before tracking
+  if (songIndex === 0) {
+    songAQualified.value = false
+    songAListeningTime.value = 0
+  } else {
+    songBQualified.value = false
+    songBListeningTime.value = 0
+  }
+  
+  // Stop any existing watcher for this song to prevent accumulation
+  if (songIndex === 0 && songAWatcher) {
+    songAWatcher()
+    songAWatcher = null
+  } else if (songIndex === 1 && songBWatcher) {
+    songBWatcher()
+    songBWatcher = null
+  }
   
   // Watch for progress updates to track listening time
   const progressWatcher = watch(audio.currentTime, (currentTime) => {
+    // Calculate relative listening time (time since playback started)
+    const relativeTime = currentTime - clipStartTime
+    
     if (songIndex === 0) {
-      songAListeningTime.value = currentTime
-      if (currentTime >= 15 && !songAQualified.value) {
+      songAListeningTime.value = relativeTime
+      if (relativeTime >= 3 && !songAQualified.value) {
         songAQualified.value = true
       }
     } else {
-      songBListeningTime.value = currentTime
-      if (currentTime >= 15 && !songBQualified.value) {
+      songBListeningTime.value = relativeTime
+      if (relativeTime >= 3 && !songBQualified.value) {
         songBQualified.value = true
       }
     }
   })
+  
+  // Store watcher reference for cleanup
+  if (songIndex === 0) {
+    songAWatcher = progressWatcher
+  } else {
+    songBWatcher = progressWatcher
+  }
   
   // Clean up watcher when song stops
   const stopWatcher = watch(audio.isPlaying, (isPlaying) => {
     if (!isPlaying) {
       progressWatcher()
       stopWatcher()
+      // Clear watcher reference
+      if (songIndex === 0) {
+        songAWatcher = null
+      } else {
+        songBWatcher = null
+      }
     }
   })
 }
@@ -808,6 +914,17 @@ const resetBattle = () => {
   songBQualified.value = false
   songAListeningTime.value = 0
   songBListeningTime.value = 0
+  
+  // Clean up any active watchers
+  if (songAWatcher) {
+    songAWatcher()
+    songAWatcher = null
+  }
+  if (songBWatcher) {
+    songBWatcher()
+    songBWatcher = null
+  }
+  
   selectedPlayOptionA.value = null
   selectedPlayOptionB.value = null
   isVoting.value = false
@@ -1320,14 +1437,22 @@ onUnmounted(() => {
   margin-top: 2rem;
 }
 
-.vote-btn {
-  --background: #ffd200;
-  --color: #000000;
-  --border-radius: 0.5rem;
-  font-weight: 600;
+.vote-button-container {
+  margin-top: 1rem;
+  width: 200px;
+  display: flex;
+  justify-content: center;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-.vote-btn:disabled {
+.vote-btn-a,
+.vote-btn-b {
+  width: 100%;
+}
+
+.vote-btn-a:disabled,
+.vote-btn-b:disabled {
   --background: var(--text-muted);
   --color: var(--text-secondary);
 }

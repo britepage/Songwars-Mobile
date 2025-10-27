@@ -32,26 +32,6 @@
       </div>
     </div>
     
-    <!-- Play/Pause button -->
-    <ion-button 
-      :fill="isPlaying ? 'solid' : 'outline'"
-      @click="togglePlay"
-      class="play-button"
-    >
-      <ion-icon :icon="isPlaying ? pause : play" slot="icon-only" />
-    </ion-button>
-    
-    <!-- Progress bar -->
-    <div v-if="showProgress" class="progress-container">
-      <div class="progress-bar">
-        <div class="progress-fill" :style="{ width: `${progress}%` }"></div>
-      </div>
-      <div class="time-display">
-        <span>{{ formatTime(currentTime) }}</span>
-        <span>{{ formatTime(duration) }}</span>
-      </div>
-    </div>
-    
     <!-- Duration options -->
     <div v-if="showDurationOptions" class="duration-options">
       <button 
@@ -77,10 +57,26 @@
       </button>
     </div>
     
-    <!-- Song info -->
-    <div class="song-info" v-if="song">
-      <h3 class="song-title">{{ song.title }}</h3>
-      <p class="song-artist">{{ song.artist }}</p>
+    <!-- Play/Pause button and Progress bar (only shown for 'full' duration) -->
+    <div v-if="showProgress" class="playback-controls">
+      <ion-button 
+        fill="solid"
+        @click="togglePlay"
+        class="play-button"
+      >
+        <ion-icon :icon="isPlaying ? pause : play" slot="icon-only" />
+      </ion-button>
+      
+      <div class="progress-container">
+        <div 
+          class="progress-bar"
+          @click="handleProgressBarClick"
+          @mousedown="handleScrubberMouseDown"
+          @touchstart="handleScrubberTouchStart"
+        >
+          <div class="progress-fill" :style="{ width: `${progress}%` }"></div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -131,6 +127,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   play: [song: Song]
   'duration-select': [duration: number | string]
+  seek: [percentage: number]
 }>()
 
 // Gear rotation state
@@ -151,10 +148,67 @@ const togglePlay = () => {
   }
 }
 
-const formatTime = (seconds: number) => {
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${mins}:${secs.toString().padStart(2, '0')}`
+// Seeking functionality
+const handleProgressBarClick = (event: MouseEvent) => {
+  const progressBar = event.currentTarget as HTMLElement
+  const rect = progressBar.getBoundingClientRect()
+  const clickX = event.clientX - rect.left
+  const percentage = (clickX / rect.width) * 100
+  emit('seek', percentage)
+}
+
+let isDragging = false
+
+const handleScrubberMouseDown = (event: MouseEvent) => {
+  isDragging = true
+  handleProgressBarClick(event)
+  
+  const handleMouseMove = (moveEvent: MouseEvent) => {
+    if (isDragging) {
+      const progressBar = event.currentTarget as HTMLElement
+      const rect = progressBar.getBoundingClientRect()
+      const moveX = moveEvent.clientX - rect.left
+      const percentage = Math.max(0, Math.min(100, (moveX / rect.width) * 100))
+      emit('seek', percentage)
+    }
+  }
+  
+  const handleMouseUp = () => {
+    isDragging = false
+    document.removeEventListener('mousemove', handleMouseMove)
+    document.removeEventListener('mouseup', handleMouseUp)
+  }
+  
+  document.addEventListener('mousemove', handleMouseMove)
+  document.addEventListener('mouseup', handleMouseUp)
+}
+
+const handleScrubberTouchStart = (event: TouchEvent) => {
+  isDragging = true
+  const touch = event.touches[0]
+  const progressBar = event.currentTarget as HTMLElement
+  const rect = progressBar.getBoundingClientRect()
+  const touchX = touch.clientX - rect.left
+  const percentage = (touchX / rect.width) * 100
+  emit('seek', percentage)
+  
+  const handleTouchMove = (moveEvent: TouchEvent) => {
+    if (isDragging) {
+      const moveTouch = moveEvent.touches[0]
+      const moveX = moveTouch.clientX - rect.left
+      const percentage = Math.max(0, Math.min(100, (moveX / rect.width) * 100))
+      emit('seek', percentage)
+    }
+  }
+  
+  const handleTouchEnd = () => {
+    isDragging = false
+    document.removeEventListener('touchmove', handleTouchMove)
+    document.removeEventListener('touchend', handleTouchEnd)
+  }
+  
+  document.addEventListener('touchmove', handleTouchMove)
+  document.addEventListener('touchend', handleTouchEnd)
 }
 
 // Gear animation control
@@ -257,10 +311,16 @@ onUnmounted(() => {
 
 
 .play-button {
-  margin-top: 1rem;
+  margin-top: 0;
   --color: #ffd200;
   --border-color: #ffd200;
   --background: transparent;
+  width: 48px;
+  height: 48px;
+  --border-radius: 50%;
+  --border-width: 2px;
+  --padding-start: 0;
+  --padding-end: 0;
 }
 
 .play-button[fill="solid"] {
@@ -300,8 +360,8 @@ onUnmounted(() => {
 }
 
 .progress-container {
-  width: 100%;
-  margin-top: 1rem;
+  flex: 1;
+  margin-top: 0;
 }
 
 .progress-bar {
@@ -309,13 +369,31 @@ onUnmounted(() => {
   height: 4px;
   background-color: var(--border-color);
   border-radius: 2px;
-  overflow: hidden;
+  overflow: visible;
+  position: relative;
+  cursor: pointer;
 }
 
 .progress-fill {
   height: 100%;
   background-color: #ffd200;
   transition: width 0.1s ease;
+  position: relative;
+}
+
+/* Add visible scrubber/thumb indicator */
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  right: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  background-color: #ffd200;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.1);
 }
 
 .time-display {
@@ -336,21 +414,31 @@ onUnmounted(() => {
 .duration-btn {
   flex: 1;
   padding: 0.5rem;
-  border: 1px solid var(--border-color);
-  background-color: transparent;
-  color: var(--text-primary);
+  border: 1px solid #000;
+  background-color: #000000;
+  color: #ffffff;
   border-radius: 0.375rem;
   font-size: 0.875rem;
+  font-weight: 600;
   transition: all 0.2s ease;
 }
 
 .duration-btn:hover {
-  background-color: var(--border-color);
+  background-color: #333333;
 }
 
 .duration-btn.selected {
   background-color: #ffd200;
   color: #000000;
   border-color: #ffd200;
+}
+
+/* Make playback controls horizontal like production */
+.playback-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  flex-direction: row;
 }
 </style>
