@@ -853,10 +853,18 @@ const voteForSong = async (choice: 'A' | 'B') => {
   if (isVoting.value || voteSubmitted.value) return
   
   isVoting.value = true
+  
+  // Get both song IDs (matches production implementation)
   const chosenSong = choice === 'A' ? songs.value[0] : songs.value[1]
+  const unchosenSong = choice === 'A' ? songs.value[1] : songs.value[0]
   
   try {
-    await battleStore.voteForSong(chosenSong.id)
+    // Call recordComparisonVote with both song IDs using the authenticated user's id
+    await battleStore.recordComparisonVote(
+      chosenSong.id,
+      unchosenSong.id,
+      authStore.user!.id
+    )
     voteSubmitted.value = true
     showCelebration()
   } catch (error) {
@@ -1060,7 +1068,7 @@ onMounted(async () => {
   // Fetch profile first
   if (authStore.user) {
     console.log('[Dashboard] Fetching profile for user:', authStore.user.id)
-    await profileStore.fetchProfile()
+    await profileStore.fetchProfile(authStore.user.id)
   }
   
   // Load genres for battle

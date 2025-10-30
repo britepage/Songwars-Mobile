@@ -8,7 +8,6 @@ export async function authGuard(
 ) {
   try {
     const currentUser = await supabaseService.getCurrentUser()
-    
     if (currentUser) {
       // User is authenticated, allow access
       next()

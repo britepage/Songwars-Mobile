@@ -72,12 +72,12 @@ export const useProfileStore = defineStore('profile', () => {
       // If no profile exists AND no error, create one automatically
       if (!data && !fetchError) {
         console.log('[profileStore] No profile found, creating minimal default profile')
-        
+
         const currentUser = await supabaseService.getCurrentUser()
         if (!currentUser) {
           throw new Error('No authenticated user')
         }
-        
+
         const minimalProfile = {
           id: currentUser.id,
           display_name: 'New User',

@@ -107,6 +107,42 @@ export const useBattleStore = defineStore('battle', () => {
     }
   }
 
+  const recordComparisonVote = async (chosenSongId: string, unchosenSongId: string, userId: string) => {
+    try {
+      comparisonMessage.value = 'Recording your vote...';
+      isLoading.value = true;
+      error.value = null;
+
+      if (!userId) {
+        throw new Error('User not authenticated')
+      }
+
+      // Record the vote using RPC function (RPC creates battle automatically)
+      const { error: voteError } = await supabaseService.getClient()
+        .rpc('record_comparison_vote', {
+          chosen_song_id: chosenSongId,
+          unchosen_song_id: unchosenSongId,
+          user_id: userId
+        });
+
+      if (voteError) {
+        throw voteError;
+      }
+
+      comparisonMessage.value = 'Vote recorded successfully!';
+      hasVoted.value = true;
+      comparisonSongs.value = []; // Clear for next comparison
+
+      return { success: true, message: 'Vote recorded successfully' };
+    } catch (err: any) {
+      error.value = err instanceof Error ? err.message : 'Failed to record vote';
+      comparisonMessage.value = err instanceof Error ? err.message : 'Failed to record vote';
+      return { success: false, error: error.value };
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
   const refreshBattle = async () => {
     try {
       if (!currentBattle.value) return
@@ -129,14 +165,12 @@ export const useBattleStore = defineStore('battle', () => {
     }
   }
 
-  const fetchBattleHistory = async (userId?: string, limit = 20) => {
+  const fetchBattleHistory = async (userId: string, limit = 20) => {
     try {
       isLoading.value = true
       error.value = null
 
-      const currentUser = await supabaseService.getCurrentUser()
-      const targetUserId = userId || currentUser?.id
-
+      const targetUserId = userId
       if (!targetUserId) {
         throw new Error('No user ID provided')
       }
@@ -196,18 +230,17 @@ export const useBattleStore = defineStore('battle', () => {
     }
   }
 
-  const checkUserVote = async () => {
+  const checkUserVote = async (userId: string) => {
     try {
       if (!currentBattle.value) return
 
-      const currentUser = await supabaseService.getCurrentUser()
-      if (!currentUser) return
+      if (!userId) return
 
       const { data, error: fetchError } = await supabaseService.getClient()
         .from('votes')
         .select('*')
         .eq('comparison_id', currentBattle.value.id)
-        .eq('user_id', currentUser.id)
+        .eq('user_id', userId)
         .maybeSingle()
 
       if (fetchError) {
@@ -354,6 +387,7 @@ export const useBattleStore = defineStore('battle', () => {
     createBattle,
     voteForSong,
     recordVote,
+    recordComparisonVote,
     refreshBattle,
     fetchBattleHistory,
     fetchBattleById,

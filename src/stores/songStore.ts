@@ -66,7 +66,6 @@ export const useSongStore = defineStore('songs', () => {
 
       const currentUser = await supabaseService.getCurrentUser()
       const targetUserId = userId || currentUser?.id
-
       if (!targetUserId) {
         throw new Error('No user ID provided')
       }
@@ -165,18 +164,13 @@ export const useSongStore = defineStore('songs', () => {
     artist: string
     genre: string
     file: File
-  }) => {
+  }, userId: string) => {
     try {
       isLoading.value = true
       error.value = null
 
-      const currentUser = await supabaseService.getCurrentUser()
-      if (!currentUser) {
-        throw new Error('User not authenticated')
-      }
-
       // Upload file to storage
-      const fileName = `${currentUser.id}/${Date.now()}_${songData.file.name}`
+      const fileName = `${userId}/${Date.now()}_${songData.file.name}`
       const { error: uploadError } = await supabaseService.uploadFile(
         'song-audio',
         fileName,
@@ -192,7 +186,7 @@ export const useSongStore = defineStore('songs', () => {
 
       // Create song record
       const newSong: SongInsert = {
-        user_id: currentUser.id,
+        user_id: userId,
         title: songData.title,
         artist: songData.artist,
         genre: songData.genre,

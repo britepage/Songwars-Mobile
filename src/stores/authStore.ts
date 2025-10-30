@@ -215,7 +215,7 @@ export const useAuthStore = defineStore('auth', () => {
       error.value = null
 
       // Call backend RPC function
-      const { error: deleteError } = await supabaseService.getClient().rpc('delete_user_account')
+      const { error: deleteError } = await supabaseService.getClient().rpc('delete_user_account' as any)
       if (deleteError) throw deleteError
 
       // Clear local auth data

@@ -8,7 +8,6 @@ export async function adminGuard(
 ) {
   try {
     const currentUser = await supabaseService.getCurrentUser()
-    
     if (!currentUser) {
       // User not authenticated, redirect to sign-in
       console.log('Admin guard: User not authenticated, redirecting to sign-in')
