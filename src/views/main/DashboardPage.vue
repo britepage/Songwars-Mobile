@@ -286,7 +286,7 @@
         </div>
       </div>
     </ion-content>
-  </ion-page>
+  
 
   <!-- Error Screen -->
   <div v-if="battlePhase === 'error'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -315,6 +315,7 @@
       </div>
     </div>
   </div>
+</ion-page>
 </template>
 
 <script setup lang="ts">
@@ -322,13 +323,7 @@ import {
   IonPage, 
   IonContent, 
   IonButton, 
-  IonIcon, 
-  IonCard,
-  IonCardContent,
-  IonItem,
-  IonLabel,
-  IonSelect,
-  IonSelectOption
+  IonIcon
 } from '@ionic/vue'
 import { dice } from 'ionicons/icons'
 import { ref, computed, onMounted, watch, onUnmounted, nextTick } from 'vue'
@@ -338,10 +333,6 @@ import { useSongStore } from '@/stores/songStore'
 import { useProfileStore } from '@/stores/profileStore'
 import { useAuthStore } from '@/stores/authStore'
 
-// Declare Ionic Vue prop to prevent warnings
-defineProps({
-  registerIonPage: Function
-})
 
 import { useUploadStore } from '@/stores/uploadStore'
 import TapePlayer from '@/components/core/TapePlayer.vue'
@@ -1064,12 +1055,6 @@ watch(songs, () => {
 onMounted(async () => {
   // Start preloading assets immediately
   preloadBattleAssets()
-  
-  // Fetch profile first
-  if (authStore.user) {
-    console.log('[Dashboard] Fetching profile for user:', authStore.user.id)
-    await profileStore.fetchProfile(authStore.user.id)
-  }
   
   // Load genres for battle
   await fetchAvailableGenres()

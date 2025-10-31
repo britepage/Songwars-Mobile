@@ -111,6 +111,11 @@ export const useAuthStore = defineStore('auth', () => {
       // Clear local state
       user.value = null
       session.value = null
+      
+      // Clear profile store to prevent stale data
+      const { useProfileStore } = await import('@/stores/profileStore')
+      const profileStore = useProfileStore()
+      profileStore.profile = null
 
       return { success: true }
     } catch (err) {

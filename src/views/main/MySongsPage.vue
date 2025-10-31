@@ -94,14 +94,10 @@
 import { IonPage, IonContent, IonButton, IonButtons, IonModal, IonItem, IonInput, IonSelect, IonSelectOption, IonHeader, IonToolbar, IonTitle, IonLabel } from '@ionic/vue'
 import { ref, onMounted } from 'vue'
 import { useSongStore } from '@/stores/songStore'
-import { useProfileStore } from '@/stores/profileStore'
-import { useAuthStore } from '@/stores/authStore'
 import SongList from '@/components/dashboard/SongList.vue'
 import UploadProgress from '@/components/core/UploadProgress.vue'
 
 const songStore = useSongStore()
-const profileStore = useProfileStore()
-const authStore = useAuthStore()
 
 const showUploadModal = ref(false)
 const isUploading = ref(false)
@@ -176,11 +172,7 @@ const handleUpload = async () => {
 }
 
 onMounted(async () => {
-  // Fetch profile first to ensure it exists
-  if (authStore.user) {
-    console.log('[MySongs] Fetching profile for user:', authStore.user.id)
-    await profileStore.fetchProfile()
-  }
+  // Profile is fetched centrally in App.vue
 })
 </script>
 

@@ -67,14 +67,10 @@ import {
 import { trophy } from 'ionicons/icons'
 import { ref, computed, onMounted } from 'vue'
 import { useLeaderboardStore } from '@/stores/leaderboardStore'
-import { useProfileStore } from '@/stores/profileStore'
-import { useAuthStore } from '@/stores/authStore'
 import LeaderboardCard from '@/components/core/LeaderboardCard.vue'
 import ThemeToggle from '@/components/core/ThemeToggle.vue'
 
 const leaderboardStore = useLeaderboardStore()
-const profileStore = useProfileStore()
-const authStore = useAuthStore()
 
 const selectedGenre = ref('all')
 const isLoading = ref(false)
@@ -103,13 +99,9 @@ const handlePlay = (entry: any) => {
 }
 
 onMounted(async () => {
-  // Fetch profile first to ensure it exists
-  if (authStore.user) {
-    console.log('[Leaderboard] Fetching profile for user:', authStore.user.id)
-    await profileStore.fetchProfile()
-  }
+  // Profile is fetched centrally in App.vue
   
-  // Then load leaderboard
+  // Load leaderboard
   loadLeaderboard()
 })
 </script>

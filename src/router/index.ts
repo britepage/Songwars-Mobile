@@ -29,37 +29,30 @@ const routes: Array<RouteRecordRaw> = [
     name: 'ResetPasswordEmail',
     component: () => import('@/views/auth/ResetPasswordEmailPage.vue')
   },
-  // Main tabs layout with auth guard
+  // Main app routes (flattened - no tabs structure)
   {
-    path: '/tabs/',
-    component: () => import('@/views/TabsLayout.vue'),
-    meta: { requiresAuth: true },
-    children: [
-      {
-        path: '',
-        redirect: '/tabs/dashboard'
-      },
-      {
-        path: 'dashboard',
-        name: 'Dashboard',
-        component: () => import('@/views/main/DashboardPage.vue')
-      },
-      {
-        path: 'my-songs',
-        name: 'MySongs',
-        component: () => import('@/views/main/MySongsPage.vue')
-      },
-      {
-        path: 'leaderboard',
-        name: 'Leaderboard',
-        component: () => import('@/views/main/LeaderboardPage.vue')
-      },
-      {
-        path: 'account',
-        name: 'Account',
-        component: () => import('@/views/main/AccountPage.vue')
-      }
-    ]
+    path: '/tabs/dashboard',
+    name: 'Dashboard',
+    component: () => import('@/views/main/DashboardPage.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/tabs/my-songs',
+    name: 'MySongs',
+    component: () => import('@/views/main/MySongsPage.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/tabs/leaderboard',
+    name: 'Leaderboard',
+    component: () => import('@/views/main/LeaderboardPage.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/tabs/account',
+    name: 'Account',
+    component: () => import('@/views/main/AccountPage.vue'),
+    meta: { requiresAuth: true }
   },
   // User profile route
   {

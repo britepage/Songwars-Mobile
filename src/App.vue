@@ -16,16 +16,15 @@ import { IonApp, IonRouterOutlet } from '@ionic/vue'
 import HeaderNavigation from './components/core/HeaderNavigation.vue'
 import FooterNavigation from './components/core/FooterNavigation.vue'
 import { onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
 import { SplashScreen } from '@capacitor/splash-screen'
 import { StatusBar, Style } from '@capacitor/status-bar'
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
-import { AUTH_STORE_REDIRECT_ROUTES } from '@/constants/publicRoutes'
+import { useProfileStore } from '@/stores/profileStore'
 
-const router = useRouter()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
+const profileStore = useProfileStore()
 
 onMounted(async () => {
   // Initialize theme FIRST (before splash screen)
@@ -47,43 +46,32 @@ onMounted(async () => {
   await authStore.initializeAuth()
   
   console.log('[App.vue] Auth initialized, user:', authStore.user?.id)
+  
+  // Fetch profile if user exists but profile doesn't (handles page refresh case)
+  if (authStore.user && !profileStore.profile) {
+    await profileStore.fetchProfile(authStore.user.id)
+  }
 })
 
-// Watch for auth state changes and handle redirects
+// Watch for theme changes and update status bar
 watch(() => themeStore.isDark, async (isDark) => {
   try {
     await StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light })
     await StatusBar.setBackgroundColor({ color: isDark ? '#000000' : '#ffffff' })
   } catch {}
 })
-watch(() => authStore.user, (newUser) => {
-  const currentPath = router.currentRoute.value.path
-  console.log('[Auth Watcher] Path:', currentPath, 'user:', newUser?.id, 'isAuthenticated:', authStore.isAuthenticated)
-  
-  // Check if current route is public
-  const isPublic = AUTH_STORE_REDIRECT_ROUTES.some(route => 
-    currentPath === route || currentPath.startsWith(route + '/')
-  )
-  
-  // Special case: Never redirect away from /reset-password
-  if (currentPath.startsWith('/reset-password')) {
-    return
-  }
-  
-  if (newUser) {
-    // User is authenticated - redirect from public routes to dashboard
-    if (isPublic && currentPath !== '/preview') {
-      console.log('[Auth Watcher] Redirecting authenticated user to dashboard')
-      router.push('/tabs/dashboard')
-    }
-  } else {
-    // User is not authenticated - redirect from protected routes to sign-in
-    if (!isPublic) {
-      console.log('[Auth Watcher] Redirecting unauthenticated user to sign-in')
-      router.push('/sign-in')
+
+// Watch for auth state changes and fetch profile when user signs in
+watch(() => authStore.user, async (newUser, oldUser) => {
+  // When user signs in (goes from null to user)
+  if (newUser && !oldUser) {
+    // Fetch profile if it doesn't exist yet
+    if (!profileStore.profile) {
+      await profileStore.fetchProfile(newUser.id)
     }
   }
-}, { immediate: true })
+  // When user signs out (goes from user to null), profile is already cleared in signOut
+}, { immediate: false })
 </script>
 
 <style>

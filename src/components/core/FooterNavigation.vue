@@ -82,12 +82,7 @@ const route = useRoute()
 const authStore = useAuthStore()
 const profileStore = useProfileStore()
 
-// Fetch profile on mount to ensure footer has role data
-onMounted(async () => {
-  if (authStore.user) {
-    await profileStore.fetchProfile()
-  }
-})
+// Profile is fetched centrally in App.vue when user signs in
 
 // Computed properties for active states
 const isAuthenticated = computed(() => authStore.user)

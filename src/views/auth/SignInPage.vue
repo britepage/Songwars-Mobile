@@ -153,7 +153,9 @@ const handleSignIn = async () => {
   
   try {
     await authStore.signInWithEmail(email.value, password.value)
-    // Auth watcher will handle redirect
+    // Navigate to dashboard replacing history entry to avoid stale /sign-in
+    await router.replace('/tabs/dashboard')
+    await router.isReady()
   } catch (err) {
     console.error('Sign-in process caught in component:', err)
   } finally {
@@ -166,6 +168,9 @@ const handleGoogleSignIn = async () => {
   
   try {
     await authStore.signInWithGoogle()
+    // Navigate to dashboard replacing history entry to avoid stale /sign-in
+    await router.replace('/tabs/dashboard')
+    await router.isReady()
   } catch (err) {
     console.error('Google sign-in process caught in component:', err)
   } finally {
@@ -178,6 +183,9 @@ const handleFacebookSignIn = async () => {
   
   try {
     await authStore.signInWithFacebook()
+    // Navigate to dashboard replacing history entry to avoid stale /sign-in
+    await router.replace('/tabs/dashboard')
+    await router.isReady()
   } catch (err) {
     console.error('Facebook sign-in process caught in component:', err)
   } finally {

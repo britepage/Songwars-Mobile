@@ -4,22 +4,24 @@ import { supabaseService } from '@/services/supabase.service'
 export async function authGuard(
   _to: RouteLocationNormalized,
   _from: RouteLocationNormalized,
-  next: (to?: string | false) => void
+  next: (to?: string | false | { path: string; replace?: boolean }) => void
 ) {
   try {
-    const currentUser = await supabaseService.getCurrentUser()
+    // Read Supabase session first for immediate accuracy after sign-in
+    const client = supabaseService.getClient()
+    const { data: { session } } = await client.auth.getSession()
+    const currentUser = session?.user || await supabaseService.getCurrentUser()
+
     if (currentUser) {
-      // User is authenticated, allow access
       next()
-    } else {
-      // User is not authenticated, redirect to sign-in
-      console.log('Auth guard: User not authenticated, redirecting to sign-in')
-      next('/sign-in')
+      return
     }
+
+    // Unauthenticated → redirect with replace to avoid stale history
+    next({ path: '/sign-in', replace: true })
   } catch (error) {
     console.error('Auth guard error:', error)
-    // On error, redirect to sign-in for safety
-    next('/sign-in')
+    next({ path: '/sign-in', replace: true })
   }
 }
 

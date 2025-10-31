@@ -50,9 +50,10 @@ const route = useRoute();
 const authStore = useAuthStore();
 
 // Visibility computed properties
-const isAuthenticated = computed(() => authStore.isAuthenticated);
 const isUserProfilePage = computed(() => route.path.startsWith('/user/'));
-const isAuthenticatedRoute = computed(() => route.path.startsWith('/tabs/'));
+const isAuthenticatedRoute = computed(() => 
+  authStore.isAuthenticated && route.path.startsWith('/tabs/')
+);
 
 // Theme state
 const isDarkMode = ref(false);

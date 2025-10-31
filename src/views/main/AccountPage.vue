@@ -668,7 +668,8 @@ const saveProfile = async () => {
 const handleLogout = async () => {
   try {
     await authStore.signOut()
-    router.push('/sign-in')
+    // Explicit redirect after logout (replaces removed watcher behavior)
+    await router.replace('/sign-in')
   } catch (error) {
     console.error('Logout failed:', error)
   }
