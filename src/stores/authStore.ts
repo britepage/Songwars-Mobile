@@ -117,6 +117,18 @@ export const useAuthStore = defineStore('auth', () => {
       const profileStore = useProfileStore()
       profileStore.profile = null
 
+      // Clear tag and flag stores (cached user-specific data)
+      try {
+        const { useTagStore } = await import('@/stores/tagStore')
+        const tagStore = useTagStore()
+        tagStore.clear()
+      } catch {}
+      try {
+        const { useFlagStore } = await import('@/stores/flagStore')
+        const flagStore = useFlagStore()
+        flagStore.clear()
+      } catch {}
+
       return { success: true }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Sign out failed'

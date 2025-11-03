@@ -159,7 +159,21 @@
           <div class="battle-songs pb-[11em] pt-[8em]">
             <!-- Song A -->
             <div class="song-section">
-              <h3 class="song-label">Song A</h3>
+              <h3 class="song-label">
+                Song A
+                <svg 
+                  @click.stop="tagStore.toggle(songs[0]?.id)"
+                  class="inline-block w-4 h-4 cursor-pointer transition-colors"
+                  :class="tagStore.isTagged(songs[0]?.id) ? 'text-[#ffd200]' : 'text-gray-400'"
+                  :fill="tagStore.isTagged(songs[0]?.id) ? 'currentColor' : 'none'"
+                  :stroke="tagStore.isTagged(songs[0]?.id) ? 'none' : 'currentColor'"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                  aria-label="Tag Song A"
+                >
+                  <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                </svg>
+              </h3>
               
               <TapePlayer 
                 :song="songs[0]"
@@ -206,7 +220,21 @@
             
             <!-- Song B -->
             <div class="song-section">
-              <h3 class="song-label">Song B</h3>
+              <h3 class="song-label">
+                Song B
+                <svg 
+                  @click.stop="tagStore.toggle(songs[1]?.id)"
+                  class="inline-block w-4 h-4 cursor-pointer transition-colors"
+                  :class="tagStore.isTagged(songs[1]?.id) ? 'text-[#ffd200]' : 'text-gray-400'"
+                  :fill="tagStore.isTagged(songs[1]?.id) ? 'currentColor' : 'none'"
+                  :stroke="tagStore.isTagged(songs[1]?.id) ? 'none' : 'currentColor'"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                  aria-label="Tag Song B"
+                >
+                  <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                </svg>
+              </h3>
               
               <TapePlayer 
                 :song="songs[1]"
@@ -343,6 +371,8 @@ import confetti from 'canvas-confetti'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
 import { supabaseService } from '@/services/supabase.service'
 import { MASTER_GENRES } from '@/utils/genres'
+import { useTagStore } from '@/stores/tagStore'
+import { useFlagStore } from '@/stores/flagStore'
 
 // Import battle assets
 import wheelImage from '@/assets/images/wheel.png'
@@ -355,6 +385,8 @@ const songStore = useSongStore()
 const profileStore = useProfileStore()
 const authStore = useAuthStore()
 const uploadStore = useUploadStore()
+const tagStore = useTagStore()
+const flagStore = useFlagStore()
 
 // Battle audio instances
 const audioA = useHowlerPlayer()
@@ -379,9 +411,7 @@ const preloadedAssets = ref<{
   rouletteSound: null
 })
 
-// User data state
-const taggedSongIds = ref<Set<string>>(new Set())
-const userFlags = ref<Record<string, Record<'hate_speech' | 'copyright', boolean>>>({})
+// User data state now managed by Pinia stores (tagStore/flagStore)
 const audioAError = ref(false)
 const audioBError = ref(false)
 
@@ -507,8 +537,8 @@ const startBattle = async () => {
       return
     }
     
-    // STEP 3: Load tagged songs (Network call 3)
-    await loadTaggedSongs()
+    // STEP 3: Load tagged songs via global store (Network call 3)
+    await tagStore.loadUserTags()
     
     // STEP 4: User flags load automatically via watcher (Network call 4)
     
@@ -990,65 +1020,10 @@ const preloadBattleAssets = async () => {
   }
 }
 
-// User data loading functions
-const loadTaggedSongs = async () => {
-  if (!authStore.user?.id) return
-  
-  try {
-    const { data, error } = await supabaseService.getClient()
-      .from('user_tags' as any)
-      .select('song_id')
-      .eq('user_id', authStore.user.id)
-    
-    if (error) {
-      console.error('Error loading tagged songs:', error)
-      return
-    }
-    
-    taggedSongIds.value = new Set(data?.map((item: any) => item.song_id) || [])
-  } catch (error) {
-    console.error('Error loading tagged songs:', error)
-  }
-}
-
-const loadUserFlags = async () => {
-  if (!authStore.user?.id || songs.value.length === 0) return
-  
-  try {
-    const songIds = songs.value.map(song => song.id)
-    const { data, error } = await supabaseService.getClient()
-      .from('song_flags')
-      .select('song_id, category')
-      .eq('user_id', authStore.user.id)
-      .in('song_id', songIds)
-    
-    if (error) {
-      console.error('Error loading user flags:', error)
-      return
-    }
-    
-    // Reset user flags
-    userFlags.value = {}
-    
-    // Process flags data
-    data?.forEach((flag: any) => {
-      if (!userFlags.value[flag.song_id]) {
-        userFlags.value[flag.song_id] = {
-          hate_speech: false,
-          copyright: false
-        }
-      }
-      userFlags.value[flag.song_id][flag.category as 'hate_speech' | 'copyright'] = true
-    })
-  } catch (error) {
-    console.error('Error loading user flags:', error)
-  }
-}
-
-// Watch for songs changes to load user flags
+// Watch for songs changes to load user flags via store
 watch(songs, () => {
   if (songs.value.length > 0) {
-    loadUserFlags() // Not awaited - runs in background
+    flagStore.loadUserFlags(songs.value.map(s => s.id))
   }
 }, { immediate: true })
 
