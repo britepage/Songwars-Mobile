@@ -159,11 +159,11 @@
           <div class="battle-songs pb-[11em] pt-[8em]">
             <!-- Song A -->
             <div class="song-section">
-              <h3 class="song-label">
-                Song A
+              <h3 class="song-label flex items-center">
+                <span>Song A</span>
                 <svg 
                   @click.stop="tagStore.toggle(songs[0]?.id)"
-                  class="inline-block w-4 h-4 cursor-pointer transition-colors"
+                  class="inline-block w-4 h-4 ml-2 cursor-pointer transition-colors"
                   :class="tagStore.isTagged(songs[0]?.id) ? 'text-[#ffd200]' : 'text-gray-400'"
                   :fill="tagStore.isTagged(songs[0]?.id) ? 'currentColor' : 'none'"
                   :stroke="tagStore.isTagged(songs[0]?.id) ? 'none' : 'currentColor'"
@@ -211,6 +211,17 @@
                   Vote for Song A
                 </ion-button>
               </div>
+
+              <!-- Actions menu below controls (Song A) -->
+              <div class="mt-2 flex justify-center">
+                <SongActionsMenu
+                  v-if="songs[0]?.id"
+                  :song-id="songs[0].id"
+                  :title="songs[0]?.title"
+                  :artist="songs[0]?.artist"
+                  @open-flag-modal="openFlagModal"
+                />
+              </div>
             </div>
             
             <!-- VS Separator -->
@@ -220,11 +231,11 @@
             
             <!-- Song B -->
             <div class="song-section">
-              <h3 class="song-label">
-                Song B
+              <h3 class="song-label flex items-center">
+                <span>Song B</span>
                 <svg 
                   @click.stop="tagStore.toggle(songs[1]?.id)"
-                  class="inline-block w-4 h-4 cursor-pointer transition-colors"
+                  class="inline-block w-4 h-4 ml-2 cursor-pointer transition-colors"
                   :class="tagStore.isTagged(songs[1]?.id) ? 'text-[#ffd200]' : 'text-gray-400'"
                   :fill="tagStore.isTagged(songs[1]?.id) ? 'currentColor' : 'none'"
                   :stroke="tagStore.isTagged(songs[1]?.id) ? 'none' : 'currentColor'"
@@ -272,6 +283,17 @@
                   Vote for Song B
                 </ion-button>
               </div>
+
+              <!-- Actions menu below controls (Song B) -->
+              <div class="mt-2 flex justify-center">
+                <SongActionsMenu
+                  v-if="songs[1]?.id"
+                  :song-id="songs[1].id"
+                  :title="songs[1]?.title"
+                  :artist="songs[1]?.artist"
+                  @open-flag-modal="openFlagModal"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -315,6 +337,144 @@
       </div>
     </ion-content>
   
+  <!-- Flag Modal -->
+  <ion-modal :is-open="showFlagModal" @didDismiss="() => { showFlagModal = false; flaggingSong = null }">
+    <ion-page>
+      <div class="bg-white flex items-center justify-between px-4 py-3 border-b border-gray-200">
+        <h2 class="text-lg font-semibold text-black">Flag Song</h2>
+        <button 
+          @click="showFlagModal = false" 
+          class="text-black hover:text-gray-700 transition-colors p-1"
+          aria-label="Close modal"
+        >
+          <ion-icon :icon="close" class="w-6 h-6" />
+        </button>
+      </div>
+      <ion-content>
+        <div class="p-4 bg-white dark:bg-gray-900 text-black dark:text-white">
+          <h3 class="text-lg font-semibold mb-1">
+            Flagging: <span class="font-bold">{{ flaggingSong?.title }}</span>
+          </h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">by {{ flaggingSong?.artist }}</p>
+
+          <!-- Both Flags Already Set Message -->
+          <div v-if="bothFlagsSet" class="bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-3 py-2 rounded mb-3">
+            You have already flagged this song for all categories.
+          </div>
+
+          <!-- Category Selection -->
+          <label class="block text-sm mb-1">Category</label>
+          <Listbox v-model="flagCategory" :disabled="bothFlagsSet">
+            <div ref="flagCategorySelectRef" class="relative">
+              <ListboxButton 
+                as="div" 
+                role="button" 
+                tabindex="0"
+                @click="updateFlagCategoryOptionsPosition"
+                class="border border-gray-300 rounded w-full mb-3 p-2 bg-white dark:bg-gray-800 text-black dark:text-white text-left flex items-center justify-between cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#ffd200]"
+                :class="{ 'opacity-50 cursor-not-allowed': bothFlagsSet }"
+              >
+                <span>{{ flagCategory === 'hate_speech' ? 'Hate Speech' : flagCategory === 'copyright' ? 'Copyright' : 'Select Category' }}</span>
+                <svg class="ml-2 h-4 w-4 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd"/>
+                </svg>
+              </ListboxButton>
+              
+              <Teleport to="body">
+                <ListboxOptions
+                  :style="flagCategoryOptionsStyle"
+                  class="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 py-1 text-gray-900 dark:text-white outline-none shadow-lg"
+                >
+                  <ListboxOption
+                    value="hate_speech"
+                    :disabled="flagStore.hasUserFlagged(flaggingSong?.id, 'hate_speech')"
+                    as="template"
+                    v-slot="{ active, selected }"
+                  >
+                    <li
+                      :class="[
+                        'px-3 py-2 text-sm cursor-pointer',
+                        flagStore.hasUserFlagged(flaggingSong?.id, 'hate_speech') ? 'opacity-50 cursor-not-allowed' : '',
+                        active && !flagStore.hasUserFlagged(flaggingSong?.id, 'hate_speech') && 'bg-gray-100 dark:bg-gray-700',
+                        selected && 'font-medium'
+                      ]"
+                    >
+                      {{ flagStore.hasUserFlagged(flaggingSong?.id, 'hate_speech') ? '✓ ' : '' }}Hate Speech
+                    </li>
+                  </ListboxOption>
+                  <ListboxOption
+                    value="copyright"
+                    :disabled="flagStore.hasUserFlagged(flaggingSong?.id, 'copyright')"
+                    as="template"
+                    v-slot="{ active, selected }"
+                  >
+                    <li
+                      :class="[
+                        'px-3 py-2 text-sm cursor-pointer',
+                        flagStore.hasUserFlagged(flaggingSong?.id, 'copyright') ? 'opacity-50 cursor-not-allowed' : '',
+                        active && !flagStore.hasUserFlagged(flaggingSong?.id, 'copyright') && 'bg-gray-100 dark:bg-gray-700',
+                        selected && 'font-medium'
+                      ]"
+                    >
+                      {{ flagStore.hasUserFlagged(flaggingSong?.id, 'copyright') ? '✓ ' : '' }}Copyright
+                    </li>
+                  </ListboxOption>
+                </ListboxOptions>
+              </Teleport>
+            </div>
+          </Listbox>
+
+          <!-- Blue Bar Indicator for Already-Flagged Category -->
+          <div 
+            v-if="flaggingSong?.id && flagStore.hasAny(flaggingSong.id)" 
+            class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-2 rounded mb-3"
+          >
+            Already Flagged: 
+            <span 
+              v-if="flagStore.hasUserFlagged(flaggingSong.id, 'hate_speech')" 
+              class="bg-red-500 text-white px-2 py-1 rounded ml-2"
+            >
+              Hate Speech
+            </span>
+            <span 
+              v-if="flagStore.hasUserFlagged(flaggingSong.id, 'copyright')" 
+              class="bg-red-500 text-white px-2 py-1 rounded ml-2"
+            >
+              Copyright
+            </span>
+          </div>
+
+          <!-- Reason Input -->
+          <label class="block text-sm mb-1">Reason (optional)</label>
+          <textarea 
+            v-model="flagReason" 
+            :disabled="bothFlagsSet"
+            class="border rounded w-full p-2 bg-white dark:bg-gray-800" 
+            rows="3"
+            placeholder="Additional details..."
+          />
+
+          <div class="flex justify-end gap-2 mt-4">
+            <ion-button 
+              fill="outline" 
+              class="border-gray-300 text-black bg-white"
+              @click="showFlagModal = false"
+            >
+              Cancel
+            </ion-button>
+            <ion-button 
+              color="danger"
+              :disabled="submittingFlag || !flaggingSong || bothFlagsSet" 
+              @click="submitFlag"
+            >
+              Submit Flag
+            </ion-button>
+          </div>
+        </div>
+      </ion-content>
+    </ion-page>
+  </ion-modal>
+
 
   <!-- Error Screen -->
   <div v-if="battlePhase === 'error'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -351,9 +511,10 @@ import {
   IonPage, 
   IonContent, 
   IonButton, 
-  IonIcon
+  IonIcon,
+  IonModal
 } from '@ionic/vue'
-import { dice } from 'ionicons/icons'
+import { dice, close } from 'ionicons/icons'
 import { ref, computed, onMounted, watch, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useBattleStore } from '@/stores/songComparisonStore'
@@ -364,6 +525,7 @@ import { useAuthStore } from '@/stores/authStore'
 
 import { useUploadStore } from '@/stores/uploadStore'
 import TapePlayer from '@/components/core/TapePlayer.vue'
+import SongActionsMenu from '@/components/battle/SongActionsMenu.vue'
 import SongUploader from '@/components/dashboard/SongUploader.vue'
 import { useHowlerPlayer } from '@/composables/useHowlerPlayer'
 import { useBattleAudio } from '@/composables/useBattleAudio'
@@ -435,6 +597,26 @@ const genreOptionsStyle = computed(() => {
   }
 })
 
+// Flag category listbox positioning
+const flagCategorySelectRef = ref<HTMLElement | null>(null)
+const flagCategoryOptionsRect = ref<DOMRect | null>(null)
+
+const updateFlagCategoryOptionsPosition = () => {
+  if (flagCategorySelectRef.value) {
+    flagCategoryOptionsRect.value = flagCategorySelectRef.value.getBoundingClientRect()
+  }
+}
+
+const flagCategoryOptionsStyle = computed(() => {
+  if (!flagCategoryOptionsRect.value) return {}
+  return {
+    position: 'fixed',
+    top: `${flagCategoryOptionsRect.value.bottom + 4}px`,
+    left: `${flagCategoryOptionsRect.value.left}px`,
+    width: `${flagCategoryOptionsRect.value.width}px`
+  }
+})
+
 // Animation state
 const wheelRotation = ref(0)
 const wheelAnimating = ref(false)
@@ -473,6 +655,20 @@ const isLoading = ref(false)
 const hasVoted = ref(false)
 const playingSongId = ref<string | null>(null)
 const activeSection = ref('battle')
+
+// Flag modal UI state
+const showFlagModal = ref(false)
+const flaggingSong = ref<{ id: string; title: string; artist: string } | null>(null)
+const flagCategory = ref<'hate_speech' | 'copyright'>('hate_speech')
+const flagReason = ref('')
+const submittingFlag = ref(false)
+
+// Computed property to check if both flags are already set
+const bothFlagsSet = computed(() => {
+  if (!flaggingSong.value?.id) return false
+  return flagStore.hasUserFlagged(flaggingSong.value.id, 'hate_speech') && 
+         flagStore.hasUserFlagged(flaggingSong.value.id, 'copyright')
+})
 
 const currentBattle = computed(() => battleStore.currentBattle)
 
@@ -1040,6 +1236,54 @@ onUnmounted(() => {
   audioA.stopBattleAudio()
   audioB.stopBattleAudio()
 })
+
+// Open flag modal from actions menu
+const openFlagModal = async ({ songId, title, artist }: { songId: string; title?: string; artist?: string }) => {
+  const resolvedTitle = title || ''
+  const resolvedArtist = artist || ''
+  
+  // Ensure flags are loaded for this song
+  await flagStore.loadUserFlags([songId])
+  
+  // Check if both flags already exist
+  const hasHateSpeech = flagStore.hasUserFlagged(songId, 'hate_speech')
+  const hasCopyright = flagStore.hasUserFlagged(songId, 'copyright')
+  
+  if (hasHateSpeech && hasCopyright) {
+    alert('You have already flagged this song for all categories.')
+    return
+  }
+  
+  flaggingSong.value = { id: songId, title: resolvedTitle, artist: resolvedArtist }
+  if (!hasHateSpeech) {
+    flagCategory.value = 'hate_speech'
+  } else {
+    flagCategory.value = 'copyright'
+  }
+  flagReason.value = ''
+  showFlagModal.value = true
+}
+
+// Submit flag via store
+const submitFlag = async () => {
+  if (!flaggingSong.value || bothFlagsSet.value) return
+  try {
+    submittingFlag.value = true
+    await flagStore.flagSong(flaggingSong.value.id, flagCategory.value, flagReason.value || null)
+    
+    // Reload flags for ALL songs in battle to maintain state for both Song A and Song B
+    if (songs.value.length > 0) {
+      await flagStore.loadUserFlags(songs.value.map(s => s.id))
+    }
+    
+    showFlagModal.value = false
+    flaggingSong.value = null
+    flagCategory.value = 'hate_speech'
+    flagReason.value = ''
+  } finally {
+    submittingFlag.value = false
+  }
+}
 </script>
 
 <style scoped>
