@@ -83,7 +83,7 @@
                   <Teleport to="body">
                     <ListboxOptions
                       :style="genreOptionsStyle"
-                      class="absolute z-50 mt-1 max-h-60 overflow-auto rounded-md border-2 border-black bg-white py-1 text-black shadow-lg outline-none"
+                      class="absolute z-50 mt-1 max-h-60 overflow-auto rounded-md border-2 border-black bg-white py-1 text-black shadow-lg outline-none w-[280px]"
                     >
                       <ListboxOption
                         v-for="genre in genres"
@@ -156,10 +156,10 @@
           class="battle-interface"
           :class="{ 'battle-fade-in': tapeSectionFadingIn }"
         >
-          <div class="battle-songs pb-[11em] pt-[8em]">
+          <div class="battle-songs pb-[6em] pt-[4em]">
             <!-- Song A -->
             <div class="song-section">
-              <h3 class="song-label flex items-center">
+              <h3 class="song-label flex items-center !mb-3">
                 <span>Song A</span>
                 <svg 
                   @click.stop="tagStore.toggle(songs[0]?.id)"
@@ -213,7 +213,7 @@
               </div>
 
               <!-- Actions menu below controls (Song A) -->
-              <div class="mt-2 flex justify-center">
+              <div class="flex justify-center">
                 <SongActionsMenu
                   v-if="songs[0]?.id"
                   :song-id="songs[0].id"
@@ -231,7 +231,7 @@
             
             <!-- Song B -->
             <div class="song-section">
-              <h3 class="song-label flex items-center">
+              <h3 class="song-label flex items-center !mb-3">
                 <span>Song B</span>
                 <svg 
                   @click.stop="tagStore.toggle(songs[1]?.id)"
@@ -285,7 +285,7 @@
               </div>
 
               <!-- Actions menu below controls (Song B) -->
-              <div class="mt-2 flex justify-center">
+              <div class="flex justify-center">
                 <SongActionsMenu
                   v-if="songs[1]?.id"
                   :song-id="songs[1].id"
@@ -589,11 +589,14 @@ const updateGenreOptionsPosition = () => {
 
 const genreOptionsStyle = computed(() => {
   if (!genreOptionsRect.value) return {}
+  // Calculate button center: left edge + half of width
+  const buttonCenter = genreOptionsRect.value.left + (genreOptionsRect.value.width / 2)
+  
   return {
     position: 'fixed',
     top: `${genreOptionsRect.value.bottom + 4}px`,
-    left: `${genreOptionsRect.value.left}px`,
-    width: `${genreOptionsRect.value.width}px`
+    left: `${buttonCenter}px`,
+    transform: 'translateX(-50%)'
   }
 })
 
@@ -1071,6 +1074,11 @@ const voteForSong = async (choice: 'A' | 'B') => {
   
   isVoting.value = true
   
+  // Stop all audio immediately when vote is cast
+  audioA.stopBattleAudio()
+  audioB.stopBattleAudio()
+  battleAudio.stopRouletteSound()
+  
   // Get both song IDs (matches production implementation)
   const chosenSong = choice === 'A' ? songs.value[0] : songs.value[1]
   const unchosenSong = choice === 'A' ? songs.value[1] : songs.value[0]
@@ -1133,7 +1141,7 @@ const resetBattle = () => {
   
   battleStarted.value = false
   battlePhase.value = 'loading'
-  selectedGenre.value = ''
+  // selectedGenre.value = ''  // REMOVED - persist genre selection
   songs.value = []
   songAQualified.value = false
   songBQualified.value = false
@@ -1307,7 +1315,6 @@ const submitFlag = async () => {
 .battle-songs {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
   flex: 1;
   justify-content: center;
 }
@@ -1316,12 +1323,11 @@ const submitFlag = async () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
 }
 
 .vs-divider {
   text-align: center;
-  padding: 1rem 0;
+  padding-bottom: 1rem;
 }
 
 .vs-text {
@@ -1557,21 +1563,6 @@ const submitFlag = async () => {
   flex-direction: column;
 }
 
-.battle-songs {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-  flex: 1;
-  justify-content: center;
-}
-
-.song-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-}
-
 .song-label {
   font-size: 1.5rem;
   font-weight: bold;
@@ -1619,10 +1610,6 @@ const submitFlag = async () => {
   font-size: 0.875rem;
 }
 
-.vs-divider {
-  text-align: center;
-  padding: 1rem 0;
-}
 
 .vs-text {
   font-size: 2.5rem;
@@ -1716,10 +1703,6 @@ const submitFlag = async () => {
 
 /* Responsive Design */
 @media (min-width: 768px) {
-  .battle-songs {
-    flex-direction: row;
-    gap: 4rem;
-  }
   
   .vote-buttons {
     flex-direction: row;
