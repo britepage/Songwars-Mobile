@@ -17,7 +17,7 @@
           </div>
 
           <!-- Song List -->
-          <SongList />
+          <SongList :refresh-key="refreshKey" />
         </div>
       </div>
       
@@ -91,7 +91,7 @@
 </template>
 
 <script setup lang="ts">
-import { IonPage, IonContent, IonButton, IonButtons, IonModal, IonItem, IonInput, IonSelect, IonSelectOption, IonHeader, IonToolbar, IonTitle, IonLabel } from '@ionic/vue'
+import { IonPage, IonContent, IonButton, IonButtons, IonModal, IonItem, IonInput, IonSelect, IonSelectOption, IonHeader, IonToolbar, IonTitle, IonLabel, onIonViewWillEnter } from '@ionic/vue'
 import { ref, onMounted } from 'vue'
 import { useSongStore } from '@/stores/songStore'
 import SongList from '@/components/dashboard/SongList.vue'
@@ -110,6 +110,9 @@ const uploadForm = ref({
   genre: '',
   file: null as File | null
 })
+
+// Refresh key to trigger child component refreshes
+const refreshKey = ref(0)
 
 // SongList handles its own tabs/filters/data
 
@@ -173,6 +176,12 @@ const handleUpload = async () => {
 
 onMounted(async () => {
   // Profile is fetched centrally in App.vue
+})
+
+// Ionic lifecycle hook - fires every time page is entered
+// IMPORTANT: onIonViewWillEnter is a composable function that must be called, not defined
+onIonViewWillEnter(() => {
+  refreshKey.value++ // Increment to trigger child refreshes
 })
 </script>
 

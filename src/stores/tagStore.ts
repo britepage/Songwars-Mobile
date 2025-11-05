@@ -60,14 +60,51 @@ export const useTagStore = defineStore('tags', () => {
     }
   }
 
-  // Placeholders for future consolidation
-  const getSongTagCount = async (_songId: string): Promise<number> => {
-    return tagCounts.value.get(_songId) ?? 0
+  // Get tag count for a single song via RPC
+  const getSongTagCount = async (songId: string): Promise<number> => {
+    try {
+      const { data, error } = await supabaseService.getClient().rpc('get_song_tag_count' as any, {
+        p_song_id: songId
+      })
+      
+      if (error) {
+        console.error('Error fetching tag count:', error)
+        return 0
+      }
+      
+      return (data as number) || 0
+    } catch (error) {
+      console.error('Error fetching tag count:', error)
+      return 0
+    }
   }
 
-  const loadTagCounts = async (_songIds: string[]): Promise<void> => {
-    // Intentionally left minimal for now; MySongs keeps its local logic
-    return
+  // Load tag counts for multiple songs (batch loading with caching)
+  const loadTagCounts = async (songIds: string[]): Promise<void> => {
+    if (songIds.length === 0 || isLoadingTagCounts.value) return
+    
+    isLoadingTagCounts.value = true
+    
+    try {
+      // Only fetch counts we don't already have (caching)
+      const songsToFetch = songIds.filter(id => !fetchedTagCounts.value.has(id))
+      if (songsToFetch.length === 0) return
+
+      const tagCountPromises = songsToFetch.map(async (songId) => {
+        const count = await getSongTagCount(songId)
+        return { songId, count }
+      })
+      
+      const results = await Promise.all(tagCountPromises)
+      
+      // Update reactive state
+      results.forEach(({ songId, count }) => {
+        tagCounts.value.set(songId, count)
+        fetchedTagCounts.value.add(songId)
+      })
+    } finally {
+      isLoadingTagCounts.value = false
+    }
   }
 
   const clear = (): void => {

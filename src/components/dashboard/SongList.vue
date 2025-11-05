@@ -92,168 +92,26 @@
 
     <!-- Active Songs Grid -->
     <div v-if="activeTab==='active' && filteredActiveSongs.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      <div v-for="song in filteredActiveSongs" :key="song.id" class="border rounded-xl p-6 text-center flex flex-col justify-between transition-all duration-300 border-gray-700 bg-gray-800 theme-bg-card theme-border-card">
-        <div>
-          <!-- Title with Tag Indicator -->
-          <h3 class="font-semibold text-white text-lg mb-1 break-words flex items-center justify-center relative theme-text-primary">
-            {{ song.title }}
-            <!-- Tag indicator -->
-            <svg v-if="songTagCounts[song.id] > 0" 
-                 class="inline-block w-3 h-3 ml-1 text-[#ffd200] cursor-pointer" 
-                 fill="currentColor" 
-                 viewBox="0 0 24 24"
-                 @click="showTagTooltip(song.id)"
-                 :title="`Tags: ${songTagCounts[song.id]}`">
-              <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
-            </svg>
-            <!-- Tag count tooltip -->
-            <div v-if="showTagTooltipId === song.id" 
-                 class="absolute top-8 left-1/2 transform -translate-x-1/2 bg-white text-black text-xs px-2 py-1 rounded shadow-lg z-10 whitespace-nowrap border border-gray-200">
-              Tags: {{ songTagCounts[song.id] }}
-              <div class="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-white rotate-45 border-l border-t border-gray-200"></div>
-            </div>
-          </h3>
-          <!-- Artist -->
-          <p class="text-black text-sm mb-4 italic">{{ song.artist }}</p>
-          
-          <!-- Play Circle with Loading/Error States -->
-          <div class="mb-4">
-            <div class="w-16 h-16 mx-auto mb-2 relative cursor-pointer group" @click="audioErrors[song.id] ? retryAudio(song.id) : toggleSong(song)">
-              <!-- Loading State -->
-              <div v-if="audioLoading[song.id]" class="absolute inset-0 flex items-center justify-center z-20">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ffd200]"></div>
-              </div>
-              
-              <!-- Error State -->
-              <div v-else-if="audioErrors[song.id]" class="absolute inset-0 flex items-center justify-center z-20">
-                <svg class="w-8 h-8 text-red-500" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                </svg>
-              </div>
-              
-              <!-- Normal Play/Pause State -->
-              <div v-else class="absolute inset-0 flex items-center justify-center z-10">
-                <svg v-if="!isPlaying(song.id)" class="w-6 h-6 text-gray-900" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z"/>
-                </svg>
-                <svg v-else class="w-6 h-6 text-gray-900" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-                </svg>
-              </div>
-              
-              <!-- Progress Ring -->
-              <svg class="w-[72px] h-[72px] absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 -rotate-90 z-0">
-                <!-- Single thick black ring -->
-                <circle
-                  cx="36"
-                  cy="36"
-                  r="34"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  fill="none"
-                  class="text-gray-900"
-                />
-                <!-- Progress Ring (yellow) -->
-                <circle
-                  cx="36"
-                  cy="36"
-                  r="34"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  fill="none"
-                  :stroke-dasharray="2 * Math.PI * 34"
-                  :stroke-dashoffset="getProgressOffset(song.id)"
-                  class="text-[#ffd200] transition-all duration-200"
-                />
-              </svg>
-            </div>
-            
-            <!-- Error Message -->
-            <div v-if="audioErrors[song.id]" class="text-xs text-red-500 text-center mb-2">
-              Audio failed to load
-            </div>
-            
-            <!-- Mobile Audio Info -->
-            <div v-if="isMobile && audioErrors[song.id]" class="text-xs text-gray-500 text-center">
-              Tap to retry
-            </div>
-          </div>
-          <!-- Metrics Row -->
-          <p class="text-black text-sm flex items-center justify-center space-x-3">
-            <span>Total Votes: {{ (song.likes||0) + (song.dislikes||0) }}</span>
-            <span class="text-gray-500">|</span>
-            <span>Approval: 
-              <span :class="{
-                'text-[#ffd200]': getApprovalRateNumber(song.likes, song.dislikes) >= 70,
-                'text-red-500': getApprovalRateNumber(song.likes, song.dislikes) > 0 && getApprovalRateNumber(song.likes, song.dislikes) < 50,
-                'text-black': getApprovalRateNumber(song.likes, song.dislikes) === 0
-              }">
-                {{ calcApproval(song.likes, song.dislikes) }}%
-              </span>
-            </span>
-          </p>
-          <!-- Upload Timestamp -->
-          <p class="text-xs text-gray-500 mt-3">Uploaded: {{ formatDate(song.created_at) }}</p>
-          <!-- Status Pills -->
-          <div class="mt-4 flex items-center justify-center space-x-1">
-            <template v-for="(pill, index) in getStatusPills(song)" :key="index">
-              <span 
-                class="px-3 py-1.5 rounded-full text-xs font-medium"
-                :class="pill.class">
-                {{ pill.text }}
-              </span>
-              
-              <!-- Info icon appears immediately AFTER pills with showInfoIcon -->
-              <div v-if="pill.showInfoIcon" class="relative inline-block">
-                <button
-                  @click.stop="toggleStatusInfo(song.id)"
-                  class="inline-flex items-center justify-center w-5 h-5 text-gray-400 hover:text-white focus:outline-none cursor-pointer"
-                  :aria-expanded="openInfoForId === song.id"
-                  title="More info">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" />
-                  </svg>
-                </button>
-                
-                <!-- Modal Popover -->
-                <div v-if="openInfoForId === song.id" 
-                     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-                     @click.self="openInfoForId = null">
-                  <div :class="['border rounded-lg shadow-xl max-w-md w-full max-h-[80vh] overflow-y-auto', modalClasses.container]">
-                    <div class="p-6">
-                      <div class="flex items-start justify-between mb-3">
-                        <h4 :class="['font-semibold text-lg', modalClasses.title]">
-                          {{ song.status === 'under_review' ? 'Song Under Review' : 'Song Removed' }}
-                        </h4>
-                        <button @click="openInfoForId = null" :class="['-mt-1 -mr-1 w-auto h-auto min-w-0 min-h-0', modalClasses.button]">
-                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                          </svg>
-                        </button>
-                      </div>
-                      <p :class="['text-sm', modalClasses.body]" v-html="getStatusMessage(song)"></p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </template>
-          </div>
-          <div class="mt-4 flex justify-center space-x-2">
-            <button @click="openEdit(song)" class="px-3 py-2 bg-[#ffd200] text-black rounded-lg hover:bg-[#e6bd00] transition-colors text-sm font-medium flex items-center space-x-2">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-              </svg>
-              <span>Edit</span>
-            </button>
-            <button @click="openDelete(song)" class="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium flex items-center space-x-2">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-              </svg>
-              <span>Delete</span>
-            </button>
-          </div>
-        </div>
-      </div>
+      <MySongCard
+        v-for="song in filteredActiveSongs"
+        :key="song.id"
+        :song="song"
+        :refresh-key="props.refreshKey"
+        :is-playing="isPlaying(song.id)"
+        :audio-loading="audioLoading[song.id] || false"
+        :audio-error="audioErrors[song.id] || false"
+        :progress-value="audio.currentSongId.value === song.id ? audio.progress.value : 0"
+        :is-mobile="isMobile"
+        :format-date="formatDate"
+        :calc-approval="calcApproval"
+        :get-approval-rate-number="getApprovalRateNumber"
+        :get-status-pills="getStatusPills"
+        :get-status-message="getStatusMessage"
+        @play="toggleSong"
+        @edit="openEdit"
+        @delete="openDelete"
+        @retry="retryAudio"
+      />
     </div>
 
     <!-- Trash Loading State -->
@@ -503,14 +361,23 @@ import { useHowlerPlayer } from '@/composables/useHowlerPlayer'
 import { useSongStore } from '@/stores/songStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useUploadStore } from '@/stores/uploadStore'
+import { useTagStore } from '@/stores/tagStore'
 import { supabaseService } from '@/services/supabase.service'
 import WaveformSelectorDual from '@/components/dashboard/WaveformSelectorDual.vue'
+import MySongCard from '@/components/dashboard/MySongCard.vue'
 import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
+
+interface Props {
+  refreshKey?: number
+}
+
+const props = defineProps<Props>()
 
 const songStore = useSongStore()
 const audio = useHowlerPlayer()
 const themeStore = useThemeStore()
 const uploadStore = useUploadStore()
+const tagStore = useTagStore()
 
 const activeTab = ref<'active'|'trash'>('active')
 const selectedGenre = ref('')
@@ -549,12 +416,7 @@ const loadingMore = ref(false)
 const restoringSong = ref<string | null>(null)
 const hardDeletingSong = ref<string | null>(null)
 
-// Tag and status states
-const songTagCounts = ref<{ [key: string]: number }>({})
-const showTagTooltipId = ref<string | null>(null)
-const fetchedTagCounts = ref<Set<string>>(new Set())
-const isLoadingTagCounts = ref(false)
-const openInfoForId = ref<string | null>(null)
+// Tag and status states (removed - now handled in MySongCard component)
 
 // Audio player states - adapt Howler to existing interface
 const isMobile = ref(false)
@@ -703,65 +565,7 @@ const retryAudio = async (songId: string) => {
   await toggleSong(song)
 }
 
-// Get tag count for a single song
-const getSongTagCount = async (songId: string) => {
-  try {
-    const { data, error } = await supabaseService.getClient().rpc('get_song_tag_count' as any, {
-      p_song_id: songId
-    })
-    
-    if (error) {
-      console.error('Error fetching tag count:', error)
-      return 0
-    }
-    
-    return (data as number) || 0
-  } catch (error) {
-    console.error('Error fetching tag count:', error)
-    return 0
-  }
-}
-
-// Load tag counts for all songs
-const loadTagCounts = async () => {
-  if (!songStore.songs.length || isLoadingTagCounts.value) return
-  
-  isLoadingTagCounts.value = true
-  
-  try {
-    // Only fetch counts we don't already have (caching)
-    const songsToFetch = songStore.songs.filter(s => !fetchedTagCounts.value.has(s.id))
-    if (songsToFetch.length === 0) return
-
-    const tagCountPromises = songsToFetch.map(async (song) => {
-      const count = await getSongTagCount(song.id)
-      return { songId: song.id, count }
-    })
-    
-    const results = await Promise.all(tagCountPromises)
-    
-    // Update reactive state
-    results.forEach(({ songId, count }) => {
-      songTagCounts.value[songId] = count
-      fetchedTagCounts.value.add(songId)
-    })
-  } finally {
-    isLoadingTagCounts.value = false
-  }
-}
-
-// Show tag tooltip
-const showTagTooltip = (songId: string) => {
-  showTagTooltipId.value = songId
-  // Auto-hide after 3 seconds
-  setTimeout(() => {
-    showTagTooltipId.value = null
-  }, 3000)
-}
-
-const toggleStatusInfo = (songId: string) => {
-  openInfoForId.value = openInfoForId.value === songId ? null : songId
-}
+// Tag tooltip and status modal now handled in MySongCard component
 
 const openDelete = (song: any) => {
   songToDelete.value = song
@@ -903,36 +707,7 @@ watch(activeTab, async (newTab) => {
   }
 })
 
-// Watch for song changes to reload tag counts
-const lastProcessedSignature = ref<string>('')
-const pendingSignature = ref<string | null>(null)
-
-watch(() => songStore.songs.map(s => s.id).join(','), async (newSignature) => {
-  if (!newSignature) return
-
-  // If a load is already in progress, mark pending and exit
-  if (isLoadingTagCounts.value) {
-    pendingSignature.value = newSignature
-    return
-  }
-
-  if (newSignature === lastProcessedSignature.value) return
-
-  isLoadingTagCounts.value = true
-  try {
-    await loadTagCounts()
-    lastProcessedSignature.value = newSignature
-  } finally {
-    isLoadingTagCounts.value = false
-    // If something changed during the load, run once more
-    if (pendingSignature.value && pendingSignature.value !== lastProcessedSignature.value) {
-      const sig = pendingSignature.value
-      pendingSignature.value = null
-      lastProcessedSignature.value = sig
-      await loadTagCounts()
-    }
-  }
-}, { immediate: false })
+// Tag counts now loaded individually by each MySongCard component on mount
 
 // Mobile detection
 onMounted(async () => {
@@ -940,10 +715,9 @@ onMounted(async () => {
   
   // Initial fetch
   try {
-    songStore.fetchSongs()
+    await songStore.fetchSongs()  // Await to ensure songs are loaded
     songStore.fetchTrashedSongs()  // Load trash count immediately
-    // Load tag counts after songs are fetched
-    await loadTagCounts()
+    // Tag counts now loaded individually by each MySongCard component on mount
   } catch (e) {
     console.error('Failed to fetch songs', e)
   }
