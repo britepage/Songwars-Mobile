@@ -94,6 +94,17 @@
   background-color: var(--card-bg);
 }
 
+.theme-border {
+  border: 1px solid var(--border-color);
+}
+
+.theme-text-black-light {
+  color: var(--text-primary);
+}
+[data-theme="light"] .theme-text-black-light {
+  color: #000000 !important;
+}
+
 /* Card styling */
 .theme-card {
   background-color: var(--card-bg);
