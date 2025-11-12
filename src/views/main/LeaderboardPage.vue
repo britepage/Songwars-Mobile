@@ -218,7 +218,15 @@ const loadGenres = async () => {
 const handlePlay = async (song: any) => {
   if (!song.audio_url) return
   
-  // Stop all other audio
+  const isSameSongPlaying = audio.currentSongId.value === song.song_id && audio.isPlaying.value
+
+  if (isSameSongPlaying) {
+    // Pause current playback
+    audio.stopBattleAudio()
+    return
+  }
+
+  // Stop any other audio before starting new playback
   audio.stopBattleAudio()
   
   // Play 30-second clip

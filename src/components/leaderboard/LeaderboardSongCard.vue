@@ -33,14 +33,6 @@
             </svg>
           </div>
           
-          <!-- Progress Ring -->
-          <svg class="w-12 h-12 absolute top-0 left-0 -rotate-90">
-            <circle cx="24" cy="24" r="22" stroke="currentColor" stroke-width="2" fill="none" class="text-gray-900"/>
-            <circle cx="24" cy="24" r="22" stroke="currentColor" stroke-width="2" fill="none" 
-              :stroke-dasharray="2 * Math.PI * 22"
-              :stroke-dashoffset="progressOffset"
-              class="text-[#ffd200] transition-all duration-200"/>
-          </svg>
         </div>
         
         <!-- Title with Tag Icon -->
@@ -128,14 +120,6 @@
             </svg>
           </div>
           
-          <!-- Progress Ring -->
-          <svg class="w-16 h-16 absolute top-0 left-0 -rotate-90">
-            <circle cx="32" cy="32" r="30" stroke="currentColor" stroke-width="2" fill="none" class="text-gray-900"/>
-            <circle cx="32" cy="32" r="30" stroke="currentColor" stroke-width="2" fill="none" 
-              :stroke-dasharray="2 * Math.PI * 30"
-              :stroke-dashoffset="progressOffsetDesktop"
-              class="text-[#ffd200] transition-all duration-200"/>
-          </svg>
         </div>
       </div>
       
@@ -144,11 +128,11 @@
         <h3 class="font-semibold theme-text-primary text-lg flex items-center">
           {{ song.title }}
           <svg 
-            @click.stop="handleToggleTag"
+            @click.stop="tagStore.toggle(song.song_id)"
             class="inline-block w-4 h-4 ml-2 cursor-pointer transition-colors"
-            :class="isTagged ? 'text-[#ffd200]' : 'text-gray-400'"
-            :fill="isTagged ? 'currentColor' : 'none'"
-            :stroke="isTagged ? 'none' : 'currentColor'"
+            :class="tagStore.isTagged(song.song_id) ? 'text-[#ffd200]' : 'text-gray-400'"
+            :fill="tagStore.isTagged(song.song_id) ? 'currentColor' : 'none'"
+            :stroke="tagStore.isTagged(song.song_id) ? 'none' : 'currentColor'"
             stroke-width="2"
             viewBox="0 0 24 24"
           >
@@ -215,16 +199,6 @@ const tagStore = useTagStore()
 const rankClass = computed(() => {
   if (props.song.rank === 1) return 'bg-[#ffd200] text-black'
   return 'bg-gray-300 dark:bg-gray-600 theme-text-primary'
-})
-
-const progressOffset = computed(() => {
-  const circumference = 2 * Math.PI * 22
-  return circumference * (1 - props.progressValue / 100)
-})
-
-const progressOffsetDesktop = computed(() => {
-  const circumference = 2 * Math.PI * 30
-  return circumference * (1 - props.progressValue / 100)
 })
 
 const formatDate = (dateString: string) => {
