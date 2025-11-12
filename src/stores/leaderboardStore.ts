@@ -57,14 +57,34 @@ export const useLeaderboardStore = defineStore('leaderboard', () => {
 
   const leaderboardByGenre = computed(() => {
     const grouped: Record<string, LeaderboardEntry[]> = {}
+
     leaderboard.value.forEach(entry => {
-      if (!grouped[entry.genre]) {
-        grouped[entry.genre] = []
+      const genreKey = entry.genre || 'Unknown'
+      if (!grouped[genreKey]) {
+        grouped[genreKey] = []
       }
-      if (grouped[entry.genre].length < 10) {
-        grouped[entry.genre].push(entry)
-      }
+      grouped[genreKey].push({ ...entry })
     })
+
+    Object.keys(grouped).forEach(genreKey => {
+      const items = grouped[genreKey]
+        .sort((a, b) => {
+          const rankA = a.rank ?? 0
+          const rankB = b.rank ?? 0
+          if (rankA > 0 && rankB > 0) return rankA - rankB
+          if (rankA > 0) return -1
+          if (rankB > 0) return 1
+          return (b.score ?? 0) - (a.score ?? 0)
+        })
+        .slice(0, 10)
+        .map((song, index) => ({
+          ...song,
+          rank: song.rank && song.rank > 0 ? song.rank : index + 1
+        }))
+
+      grouped[genreKey] = items
+    })
+
     return grouped
   })
 
@@ -107,7 +127,34 @@ export const useLeaderboardStore = defineStore('leaderboard', () => {
           })
 
         if (hofError) throw hofError
-        data = hofData || []
+        const normalizedData = (hofData || []).map((song: any) => {
+          const churnState = song?.churn_state ?? {}
+          const likes = Number(song?.likes ?? 0)
+          const dislikes = Number(song?.dislikes ?? 0)
+          const totalVotes = likes + dislikes
+          const finalScoreRaw = churnState?.finalScore ?? song?.score ?? 0
+          const finalScore =
+            typeof finalScoreRaw === 'number' ? finalScoreRaw : Number(finalScoreRaw)
+          const rankRaw = song?.genre_rank ?? churnState?.genre_rank ?? song?.rank ?? 0
+          const numericRank = typeof rankRaw === 'number' ? rankRaw : Number(rankRaw)
+
+          return {
+            ...song,
+            score: Number.isFinite(finalScore) ? finalScore : 0,
+            total_votes: Number.isFinite(totalVotes) ? totalVotes : 0,
+            likes,
+            dislikes,
+            audio_url: song?.url ?? churnState?.url ?? null,
+            clip_start_time: song?.clip_start_time ?? churnState?.clipStartTime ?? 0,
+            completion_date: song?.last_score_update ?? churnState?.lastScoreUpdate ?? null,
+            week_number: 4,
+            is_active: false,
+            rank: Number.isFinite(numericRank) && numericRank > 0 ? numericRank : 0,
+            username: song?.username ?? churnState?.username ?? undefined,
+            genre: song?.genre ?? churnState?.genre ?? 'Unknown'
+          }
+        })
+        data = normalizedData
       } else {
         // Regular weeks (1-3)
         // Build RPC parameters conditionally - omit genre_filter when all genres selected
@@ -181,11 +228,6 @@ export const useLeaderboardStore = defineStore('leaderboard', () => {
   }
 
   const fetchChurnEvents = async () => {
-    // Return cached data if already loaded
-    if (churnEvents.value.length > 0) {
-      return churnEvents.value
-    }
-
     try {
       churnEventsLoading.value = true
       const { data, error: fetchError } = await supabaseService.getClient()
