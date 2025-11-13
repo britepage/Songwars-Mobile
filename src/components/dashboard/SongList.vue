@@ -374,6 +374,7 @@ interface Props {
 const props = defineProps<Props>()
 
 const songStore = useSongStore()
+const initialLoadComplete = ref(false)
 const audio = useHowlerPlayer()
 const themeStore = useThemeStore()
 const uploadStore = useUploadStore()
@@ -710,18 +711,29 @@ watch(activeTab, async (newTab) => {
 // Tag counts now loaded individually by each MySongCard component on mount
 
 // Mobile detection
-onMounted(async () => {
-  isMobile.value = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-  
-  // Initial fetch
-  try {
-    await songStore.fetchSongs()  // Await to ensure songs are loaded
-    songStore.fetchTrashedSongs()  // Load trash count immediately
-    // Tag counts now loaded individually by each MySongCard component on mount
-  } catch (e) {
-    console.error('Failed to fetch songs', e)
-  }
-  
+watch(
+  () => props.refreshKey,
+  async () => {
+    isMobile.value = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    loadingMore.value = false
+    songStore.clearSongs()
+    try {
+      await songStore.fetchSongs()
+      if (activeTab.value === 'trash') {
+        await songStore.fetchTrashedSongs()
+      } else {
+        songStore.fetchTrashedSongs()
+      }
+    } catch (e) {
+      console.error('Failed to fetch songs', e)
+    } finally {
+      initialLoadComplete.value = true
+    }
+  },
+  { immediate: true }
+)
+
+onMounted(() => {
   // Infinite scroll (200px threshold)
   const onScroll = () => {
     if (activeTab.value !== 'active' || !songStore.loadMoreSongs) return

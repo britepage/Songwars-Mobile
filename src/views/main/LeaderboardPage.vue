@@ -150,6 +150,7 @@
               :audio-loading="audio.currentSongId.value === song.song_id && audio.isLoading.value"
               :audio-error="audio.currentSongId.value === song.song_id ? audio.error.value : null"
               :progress-value="audio.currentSongId.value === song.song_id ? audio.progress.value : 0"
+              :is-hall-of-fame="selectedWeek === 'hof'"
               @play="handlePlay"
               @retry="handleRetry"
             />

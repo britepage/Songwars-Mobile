@@ -69,22 +69,28 @@
       <div class="flex items-center justify-between">
         <div class="text-center">
           <div class="text-2xl font-bold text-[#ffd200]">{{ song.score.toFixed(1) }}</div>
-          <div class="text-xs theme-text-muted">Score</div>
+          <div class="text-xs theme-text-muted">{{ isHallOfFame ? 'Final Score' : 'Score' }}</div>
         </div>
         <div class="text-center">
           <div class="text-xl font-semibold theme-text-primary">{{ song.total_votes }}</div>
           <div class="text-xs theme-text-muted">Votes</div>
         </div>
         <div class="text-center">
-          <span v-if="song.is_active !== false" class="px-3 py-1 rounded-full text-xs font-medium bg-[#ffd200]/20 text-[#ffd200]">
-            Active
-          </span>
-          <span v-else-if="song.completion_date" class="text-xs theme-text-muted">
-            {{ formatDate(song.completion_date) }}
-          </span>
-          <span v-else class="px-3 py-1 rounded-full text-xs font-medium bg-gray-500/20 text-gray-400">
-            Eliminated
-          </span>
+          <template v-if="isHallOfFame">
+            <div class="text-sm theme-text-primary">{{ formatDate(song.completion_date) }}</div>
+            <div class="text-xs theme-text-muted">Completed</div>
+          </template>
+          <template v-else>
+            <span v-if="song.is_active !== false" class="px-3 py-1 rounded-full text-xs font-medium bg-[#ffd200]/20 text-[#ffd200]">
+              Active
+            </span>
+            <span v-else-if="song.completion_date" class="text-xs theme-text-muted">
+              {{ formatDate(song.completion_date) }}
+            </span>
+            <span v-else class="px-3 py-1 rounded-full text-xs font-medium bg-gray-500/20 text-gray-400">
+              Eliminated
+            </span>
+          </template>
         </div>
       </div>
     </div>
@@ -152,22 +158,28 @@
       <div class="flex items-center gap-6">
         <div class="text-right">
           <div class="text-2xl font-bold text-[#ffd200]">{{ song.score.toFixed(1) }}</div>
-          <div class="text-xs theme-text-muted">Score</div>
+          <div class="text-xs theme-text-muted">{{ isHallOfFame ? 'Final Score' : 'Score' }}</div>
         </div>
         <div class="text-right">
           <div class="text-xl font-semibold theme-text-primary">{{ song.total_votes }}</div>
           <div class="text-xs theme-text-muted">Votes</div>
         </div>
         <div class="text-right">
-          <span v-if="song.is_active !== false" class="px-3 py-1 rounded-full text-xs font-medium bg-[#ffd200]/20 text-[#ffd200]">
-            Active
-          </span>
-          <span v-else-if="song.completion_date" class="text-xs theme-text-muted">
-            Completed: {{ formatDate(song.completion_date) }}
-          </span>
-          <span v-else class="px-3 py-1 rounded-full text-xs font-medium bg-gray-500/20 text-gray-400">
-            Eliminated
-          </span>
+          <template v-if="isHallOfFame">
+            <div class="text-sm theme-text-primary">{{ formatDate(song.completion_date) }}</div>
+            <div class="text-xs theme-text-muted">Completed</div>
+          </template>
+          <template v-else>
+            <span v-if="song.is_active !== false" class="px-3 py-1 rounded-full text-xs font-medium bg-[#ffd200]/20 text-[#ffd200]">
+              Active
+            </span>
+            <span v-else-if="song.completion_date" class="text-xs theme-text-muted">
+              Completed: {{ formatDate(song.completion_date) }}
+            </span>
+            <span v-else class="px-3 py-1 rounded-full text-xs font-medium bg-gray-500/20 text-gray-400">
+              Eliminated
+            </span>
+          </template>
         </div>
       </div>
     </div>
@@ -185,6 +197,7 @@ interface Props {
   audioLoading: boolean
   audioError: boolean | string | null
   progressValue: number
+  isHallOfFame?: boolean
 }
 
 const props = defineProps<Props>()
@@ -201,7 +214,10 @@ const rankClass = computed(() => {
   return 'bg-gray-300 dark:bg-gray-600 theme-text-primary'
 })
 
+const isHallOfFame = computed(() => !!props.isHallOfFame)
+
 const formatDate = (dateString: string) => {
+  if (!dateString) return ''
   return new Date(dateString).toLocaleDateString()
 }
 
