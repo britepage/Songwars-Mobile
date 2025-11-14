@@ -113,6 +113,25 @@ export const useProfileStore = defineStore('profile', () => {
     }
   }
 
+  const fetchPublicProfileByUsername = async (username: string) => {
+    try {
+      const { data, error } = await supabaseService.getClient()
+        .from('profiles')
+        .select('*')
+        .eq('username', username)
+        .eq('is_public', true)
+        .single()
+      
+      if (error) {
+        return { success: false, error, data: null }
+      }
+      
+      return { success: true, data, error: null }
+    } catch (err) {
+      return { success: false, error: err as any, data: null }
+    }
+  }
+
   const updateProfile = async (updates: {
     display_name?: string
     username?: string
@@ -335,6 +354,7 @@ export const useProfileStore = defineStore('profile', () => {
     
     // Actions
     fetchProfile,
+    fetchPublicProfileByUsername,
     updateProfile,
     updateSocialLinks,
     updateAvatar,

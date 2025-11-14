@@ -187,6 +187,15 @@ class SupabaseService {
       .maybeSingle()
   }
 
+  public async getProfileByUsername(username: string) {
+    return await this.client
+      .from('profiles')
+      .select('*')
+      .eq('username', username)
+      .eq('is_public', true)  // Only public profiles
+      .single()  // Throws error if not found
+  }
+
   public async uploadFile(bucket: string, path: string, file: File) {
     return await this.client.storage
       .from(bucket)

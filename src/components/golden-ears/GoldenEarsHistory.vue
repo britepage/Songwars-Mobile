@@ -1,7 +1,13 @@
 <template>
-  <div class="golden-ears-history">
-    <div class="history-header" v-if="title">
-      <h3>{{ title }}</h3>
+  <div class="golden-ears-history theme-bg-card theme-border-card">
+    <div class="card-header">
+      <div class="header-left">
+        <ion-icon :icon="checkmarkCircle" class="header-icon" />
+        <h3 class="card-title">{{ title }}</h3>
+      </div>
+      <button class="refresh-button" @click="$emit('refresh')" aria-label="Refresh">
+        <ion-icon :icon="refresh" />
+      </button>
     </div>
     
     <!-- Loading State -->
@@ -11,40 +17,33 @@
     </div>
     
     <!-- Awards List -->
-    <ion-list v-else-if="awards.length > 0" class="awards-list">
-      <ion-item
+    <div v-else-if="awards.length > 0" class="awards-list">
+      <div
         v-for="award in awards"
         :key="award.id"
-        class="award-item"
+        class="award-card"
       >
-        <ion-avatar slot="start" class="award-avatar">
-          <img
-            :src="award.judge?.avatar_url || '/default-avatar.png'"
-            :alt="award.judge?.username"
-          />
-          <div class="golden-overlay">
-            <ion-icon :icon="ear" />
+        <div class="award-date-range">{{ formatDateRange(award.week_start, award.week_end) }}</div>
+        <div class="award-badge-label">Golden Ears</div>
+        
+        <div class="award-stats">
+          <div class="award-stat">
+            <span class="stat-label">Battles:</span>
+            <span class="stat-value">{{ award.battles_judged }}</span>
           </div>
-        </ion-avatar>
-        
-        <ion-label>
-          <h3>{{ award.judge?.username || 'Unknown' }}</h3>
-          <p>{{ award.accuracy_score }}% accuracy</p>
-          <p class="award-meta">
-            Week {{ award.week_number }} • Rank #{{ award.rank_position }}
-          </p>
-        </ion-label>
-        
-        <div slot="end" class="award-badge">
-          <GoldenEarsBadge
-            :is-earned="true"
-            :accuracy="award.accuracy_score"
-            :show-text="false"
-            :show-tooltip="false"
-          />
+          <div class="award-stat">
+            <span class="stat-label">Accuracy:</span>
+            <span class="stat-value">{{ Math.round(award.accuracy_score) }}%</span>
+          </div>
         </div>
-      </ion-item>
-    </ion-list>
+        
+        <div class="award-rank">
+          <span class="rank-label">Rank:</span>
+          <span class="rank-value">#{{ award.rank_position }}</span>
+          <ion-icon :icon="trophy" class="trophy-icon" />
+        </div>
+      </div>
+    </div>
     
     <!-- Empty State -->
     <div v-else class="empty-state">
@@ -56,16 +55,8 @@
 </template>
 
 <script setup lang="ts">
-import {
-  IonList,
-  IonItem,
-  IonLabel,
-  IonAvatar,
-  IonIcon,
-  IonSpinner
-} from '@ionic/vue'
-import { ear } from 'ionicons/icons'
-import GoldenEarsBadge from '@/components/core/GoldenEarsBadge.vue'
+import { IonIcon, IonSpinner } from '@ionic/vue'
+import { ear, checkmarkCircle, refresh, trophy } from 'ionicons/icons'
 
 interface GoldenEarsAward {
   id: string
@@ -76,11 +67,6 @@ interface GoldenEarsAward {
   accuracy_score: number
   rank_position: number
   awarded: boolean
-  week_number?: number
-  judge?: {
-    username: string
-    avatar_url?: string
-  }
 }
 
 interface Props {
@@ -89,27 +75,147 @@ interface Props {
   isLoading?: boolean
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   title: 'Golden Ears History',
   isLoading: false
 })
+
+const emit = defineEmits<{
+  refresh: []
+}>()
+
+const formatDateRange = (start: string, end: string) => {
+  const startDate = new Date(start)
+  const endDate = new Date(end)
+  
+  const startStr = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const endStr = endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  
+  return `${startStr}-${endStr}`
+}
 </script>
 
 <style scoped>
 .golden-ears-history {
-  width: 100%;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border-color);
 }
 
-.history-header {
-  padding: 1rem;
-  border-bottom: 1px solid var(--border-color);
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
 }
 
-.history-header h3 {
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.header-icon {
+  font-size: 1.5rem;
+  color: #ffd200;
+}
+
+.card-title {
   font-size: 1.25rem;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
+}
+
+.refresh-button {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.25rem;
+  transition: all 0.2s;
+}
+
+.refresh-button:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.awards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.award-card {
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-color);
+}
+
+.award-date-range {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.award-badge-label {
+  display: inline-block;
+  color: #ffd200;
+  font-weight: 600;
+  font-size: 0.875rem;
+  margin-bottom: 0.75rem;
+}
+
+.award-stats {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.award-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.stat-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.award-rank {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rank-label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.rank-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.trophy-icon {
+  font-size: 1.25rem;
+  color: #ffd200;
 }
 
 .loading-state,

@@ -1,164 +1,183 @@
 <template>
-  <ion-card class="golden-ears-progress-card">
-    <ion-card-header>
-      <div class="header-content">
-        <div class="icon-container">
-          <ion-icon :icon="ear" class="ears-icon" :class="{ 'golden': hasEarned }" />
-        </div>
-        <div class="header-text">
-          <ion-card-title>Golden Ears Progress</ion-card-title>
-          <ion-card-subtitle>{{ subtitle }}</ion-card-subtitle>
-        </div>
+  <div class="golden-ears-progress-card theme-bg-card theme-border-card">
+    <div class="card-header">
+      <div class="header-left">
+        <ion-icon :icon="checkmarkCircle" class="header-icon" />
+        <h3 class="card-title">Golden Ears Progress</h3>
       </div>
-    </ion-card-header>
+      <button class="refresh-button" @click="$emit('refresh')" aria-label="Refresh">
+        <ion-icon :icon="refresh" />
+      </button>
+    </div>
     
-    <ion-card-content>
+    <div class="card-content">
+      <!-- Week Display -->
+      <div v-if="weekRange" class="week-range">{{ weekRange }}</div>
+      
       <!-- Progress Bar -->
       <div class="progress-section">
-        <div class="progress-info">
-          <span class="progress-label">Accuracy</span>
-          <span class="progress-value">{{ Math.round(accuracy) }}%</span>
+        <div class="progress-header">
+          <span class="progress-label">Battles: {{ battlesCompleted }}/{{ battlesRequired }}</span>
+          <span class="progress-percentage">{{ progressPercentage }}%</span>
         </div>
-        <ion-progress-bar
-          :value="accuracy / 100"
-          :color="getProgressColor(accuracy)"
-          class="accuracy-progress"
-        />
-      </div>
-      
-      <!-- Stats Grid -->
-      <div class="stats-grid">
-        <div class="stat-item">
-          <ion-icon :icon="checkmarkCircle" class="stat-icon success" />
-          <div class="stat-info">
-            <h4>{{ correctVotes }}</h4>
-            <p>Correct</p>
-          </div>
-        </div>
-        
-        <div class="stat-item">
-          <ion-icon :icon="closeCircle" class="stat-icon danger" />
-          <div class="stat-info">
-            <h4>{{ incorrectVotes }}</h4>
-            <p>Incorrect</p>
-          </div>
-        </div>
-        
-        <div class="stat-item">
-          <ion-icon :icon="trophy" class="stat-icon primary" />
-          <div class="stat-info">
-            <h4>{{ totalEarned }}</h4>
-            <p>Earned</p>
-          </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" :style="{ width: `${progressPercentage}%` }"></div>
         </div>
       </div>
       
-      <!-- Achievement Message -->
-      <div v-if="hasEarned" class="achievement-message">
-        <ion-icon :icon="star" class="achievement-icon" />
-        <p>Congratulations! You've earned Golden Ears!</p>
+      <!-- Stats Cards -->
+      <div class="stats-cards">
+        <div class="stat-card">
+          <div class="stat-number">{{ battlesCompleted }}</div>
+          <div class="stat-label">Battles</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">{{ Math.round(accuracy) }}%</div>
+          <div class="stat-label">Accuracy</div>
+        </div>
       </div>
       
-      <!-- Next Goal -->
-      <div v-else class="next-goal">
-        <p>{{ getNextGoalMessage() }}</p>
+      <!-- Qualification Message -->
+      <div class="qualification-message">
+        <p>{{ qualificationMessage }}</p>
       </div>
-    </ion-card-content>
-  </ion-card>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import {
-  IonCard,
-  IonCardHeader,
-  IonCardTitle,
-  IonCardSubtitle,
-  IonCardContent,
-  IonIcon,
-  IonProgressBar
-} from '@ionic/vue'
-import { ear, checkmarkCircle, closeCircle, trophy, star } from 'ionicons/icons'
+import { computed } from 'vue'
+import { IonIcon } from '@ionic/vue'
+import { checkmarkCircle, refresh } from 'ionicons/icons'
+
+interface ProgressData {
+  battles_judged?: number
+  battles_required?: number
+  accuracy?: number
+  week_start?: string
+  week_end?: string
+  qualified?: boolean
+  battles_needed?: number
+}
 
 interface Props {
-  accuracy: number
-  correctVotes: number
-  incorrectVotes: number
-  totalEarned: number
-  hasEarned?: boolean
-  subtitle?: string
+  progressData?: ProgressData | null
+  isLoading?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  hasEarned: false,
-  subtitle: 'Track your voting accuracy'
+  progressData: null,
+  isLoading: false
 })
 
-const getProgressColor = (accuracy: number) => {
-  if (accuracy >= 80) return 'success'
-  if (accuracy >= 60) return 'warning'
-  return 'danger'
-}
+const emit = defineEmits<{
+  refresh: []
+}>()
 
-const getNextGoalMessage = () => {
-  const remaining = Math.max(0, 80 - props.accuracy)
-  if (remaining === 0) return 'You\'re ready to earn Golden Ears!'
-  return `${remaining.toFixed(1)}% more accuracy needed for Golden Ears`
-}
+const battlesCompleted = computed(() => props.progressData?.battles_judged || 0)
+const battlesRequired = computed(() => props.progressData?.battles_required || 20)
+const accuracy = computed(() => props.progressData?.accuracy || 0)
+const progressPercentage = computed(() => {
+  if (battlesRequired.value === 0) return 0
+  return Math.min(100, Math.round((battlesCompleted.value / battlesRequired.value) * 100))
+})
+
+const weekRange = computed(() => {
+  if (!props.progressData?.week_start) return null
+  
+  const start = new Date(props.progressData.week_start)
+  const end = props.progressData.week_end 
+    ? new Date(props.progressData.week_end)
+    : new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000)
+  
+  const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  
+  return `Week ${startStr}-${endStr}`
+})
+
+const qualificationMessage = computed(() => {
+  const needed = battlesRequired.value - battlesCompleted.value
+  if (needed <= 0) {
+    return 'You\'re qualified for Golden Ears!'
+  }
+  return `${needed} more ${needed === 1 ? 'battle' : 'battles'} needed to qualify`
+})
 </script>
 
 <style scoped>
 .golden-ears-progress-card {
-  margin: 1rem;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border-color);
 }
 
-.header-content {
+.card-header {
   display: flex;
   align-items: center;
-  gap: 1rem;
-}
-
-.icon-container {
-  width: 50px;
-  height: 50px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-tertiary);
-  border-radius: 50%;
-}
-
-.ears-icon {
-  font-size: 1.75rem;
-  color: var(--text-primary);
-}
-
-.ears-icon.golden {
-  color: #ffd700;
-  animation: goldenGlow 2s ease-in-out infinite;
-}
-
-@keyframes goldenGlow {
-  0%, 100% {
-    filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.5));
-  }
-  50% {
-    filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.8));
-  }
-}
-
-.header-text {
-  flex: 1;
-}
-
-.progress-section {
+  justify-content: space-between;
   margin-bottom: 1.5rem;
 }
 
-.progress-info {
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.header-icon {
+  font-size: 1.5rem;
+  color: #ffd200;
+}
+
+.card-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.refresh-button {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.25rem;
+  transition: all 0.2s;
+}
+
+.refresh-button:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.week-range {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.progress-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.progress-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
 }
 
 .progress-label {
@@ -167,93 +186,62 @@ const getNextGoalMessage = () => {
   font-weight: 500;
 }
 
-.progress-value {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.accuracy-progress {
-  height: 12px;
-  border-radius: 6px;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 0.5rem;
-}
-
-.stat-icon {
-  font-size: 2rem;
-}
-
-.stat-icon.success {
-  color: #10b981;
-}
-
-.stat-icon.danger {
-  color: #ef4444;
-}
-
-.stat-icon.primary {
-  color: var(--ion-color-primary);
-}
-
-.stat-info h4 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0;
-}
-
-.stat-info p {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  margin: 0;
-}
-
-.achievement-message {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  padding: 1rem;
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 237, 78, 0.1));
-  border-radius: 0.5rem;
-  border: 2px solid #ffd700;
-}
-
-.achievement-icon {
-  font-size: 1.5rem;
-  color: #ffd700;
-}
-
-.achievement-message p {
-  margin: 0;
+.progress-percentage {
+  font-size: 0.875rem;
   color: var(--text-primary);
   font-weight: 600;
 }
 
-.next-goal {
+.progress-bar-container {
+  width: 100%;
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: #ffd200;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.stats-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.stat-card {
   text-align: center;
   padding: 1rem;
-  background: var(--bg-tertiary);
+  background: var(--bg-secondary);
   border-radius: 0.5rem;
 }
 
-.next-goal p {
-  margin: 0;
-  color: var(--text-secondary);
+.stat-number {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.stat-label {
   font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.qualification-message {
+  padding: 0.75rem;
+  background: var(--bg-secondary);
+  border-radius: 0.5rem;
+  text-align: center;
+}
+
+.qualification-message p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
 }
 </style>

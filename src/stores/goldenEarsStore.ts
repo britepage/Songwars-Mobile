@@ -309,6 +309,60 @@ export const useGoldenEarsStore = defineStore('goldenEars', () => {
     error.value = null
   }
 
+  const fetchWeeklyProgress = async (userId: string, weekStart?: string) => {
+    try {
+      isLoading.value = true
+      error.value = null
+
+      const params: any = {
+        user_id: userId
+      }
+      if (weekStart) {
+        params.week_start = weekStart
+      }
+
+      const { data, error: fetchError } = await supabaseService.getClient()
+        .rpc('get_user_weekly_progress', params)
+
+      if (fetchError) {
+        throw fetchError
+      }
+
+      return { success: true, data }
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to fetch weekly progress'
+      return { success: false, error: error.value }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  const fetchGoldenEarsHistory = async (userId: string) => {
+    try {
+      isLoading.value = true
+      error.value = null
+
+      // Fetch from golden_ears table, ordered by week_start descending
+      const { data, error: fetchError } = await supabaseService.getClient()
+        .from('golden_ears')
+        .select('*')
+        .eq('judge_id', userId)
+        .eq('awarded', true)
+        .order('week_start', { ascending: false })
+
+      if (fetchError) {
+        throw fetchError
+      }
+
+      return { success: true, data: data || [] }
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to fetch golden ears history'
+      return { success: false, error: error.value }
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   return {
     // State
     awards,
@@ -334,5 +388,7 @@ export const useGoldenEarsStore = defineStore('goldenEars', () => {
     getYearlyStats,
     clearAwards,
     clearError,
+    fetchWeeklyProgress,
+    fetchGoldenEarsHistory,
   }
 })

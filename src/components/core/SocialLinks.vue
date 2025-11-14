@@ -9,7 +9,11 @@
         class="social-card"
         @click="handleLinkClick(link)"
       >
-        <div class="social-icon" v-html="getPlatformIcon(link.platform)"></div>
+        <div 
+          class="social-icon" 
+          :style="{ backgroundColor: getPlatformColor(link.platform) + '20' }"
+          v-html="getPlatformIcon(link.platform)"
+        ></div>
         <div class="social-info">
           <h4 class="platform-name">{{ getPlatformName(link.platform) }}</h4>
           <p class="platform-url">{{ formatUrl(link.url) }}</p>
@@ -51,6 +55,7 @@ interface SocialLink {
 
 interface Props {
   userId?: string
+  socialLinks?: SocialLink[]
   title?: string
   showAddButton?: boolean
 }
@@ -62,10 +67,12 @@ const props = withDefaults(defineProps<Props>(), {
 const profileStore = useProfileStore()
 
 const socialLinks = computed(() => {
-  if (props.userId) {
-    // TODO: Fetch other user's social links
-    return []
+  // If socialLinks prop is provided, use it (for other users' profiles)
+  if (props.socialLinks && Array.isArray(props.socialLinks)) {
+    return props.socialLinks
   }
+  
+  // Default: use current user's social links from store (for own profile)
   return profileStore.socialLinks
 })
 
@@ -84,12 +91,20 @@ const getPlatformName = (platform: string) => {
   return config?.name || platform
 }
 
+const getPlatformColor = (platform: string) => {
+  const config = getPlatformConfig(platform)
+  return config?.color || '#6B7280' // Default gray color if platform not found
+}
+
 const formatUrl = (url: string) => {
   try {
-    // Just return the URL as-is for now
-    return url
+    // Extract domain from URL (e.g., "https://open.spotify.com/artist/..." -> "open.spotify.com")
+    const urlObj = new URL(url)
+    return urlObj.hostname.replace(/^www\./, '') // Remove 'www.' prefix if present
   } catch {
-    return url
+    // If URL parsing fails, try to extract domain manually
+    const match = url.match(/https?:\/\/(?:www\.)?([^\/]+)/)
+    return match ? match[1] : url
   }
 }
 
@@ -158,8 +173,8 @@ const handleAddLink = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0.5rem;
-  background: var(--bg-tertiary);
+  border-radius: 50%; /* Changed from 0.5rem to 50% for circular */
+  /* Background now handled via inline style with platform color */
 }
 
 .social-icon :deep(img) {
