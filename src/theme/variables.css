@@ -133,6 +133,27 @@
   border-color: #4b5563 !important; /* gray-600 */
 }
 
+/* Softer subcard (lighter in light mode) */
+.theme-bg-subcard-soft {
+  background-color: var(--card-bg);
+}
+[data-theme="light"] .theme-bg-subcard-soft {
+  background-color: #f9fafb !important; /* gray-50 */
+}
+[data-theme="dark"] .theme-bg-subcard-soft {
+  background-color: #374151 !important; /* gray-700 */
+}
+
+.theme-border-subcard-soft {
+  border-color: var(--card-border);
+}
+[data-theme="light"] .theme-border-subcard-soft {
+  border-color: #e5e7eb !important; /* gray-200 */
+}
+[data-theme="dark"] .theme-border-subcard-soft {
+  border-color: #4b5563 !important; /* gray-600 */
+}
+
 /* Input styling */
 .theme-input {
   background-color: var(--card-bg);

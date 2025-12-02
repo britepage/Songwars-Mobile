@@ -1,45 +1,80 @@
 <template>
-  <div class="golden-ears-progress-card theme-bg-card theme-border-card">
-    <div class="card-header">
-      <div class="header-left">
-        <ion-icon :icon="checkmarkCircle" class="header-icon" />
-        <h3 class="card-title">Golden Ears Progress</h3>
+  <div class="rounded-2xl p-6 border theme-bg-card theme-border-card">
+    <!-- Header -->
+    <div class="mb-4 flex items-center justify-between">
+      <div class="flex items-center">
+        <ion-icon :icon="checkmarkCircle" class="w-5 h-5 mr-2 text-[#ffd200]" />
+        <h3 class="text-lg font-semibold flex items-center theme-text-primary">
+          Golden Ears Progress
+          <span
+            v-if="isQualified"
+            class="ml-2 text-green-600 text-sm"
+          >
+            Qualified
+          </span>
+        </h3>
       </div>
-      <button class="refresh-button" @click="$emit('refresh')" aria-label="Refresh">
+      <button
+        class="text-xs transition-colors theme-text-secondary hover:opacity-80"
+        @click="$emit('refresh')"
+        :disabled="isLoading"
+        aria-label="Refresh"
+      >
         <ion-icon :icon="refresh" />
       </button>
     </div>
-    
-    <div class="card-content">
+
+    <!-- Loading -->
+    <div v-if="isLoading" class="text-center">
+      <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-[#ffd200] mx-auto" />
+    </div>
+
+    <!-- Error / no data -->
+    <div
+      v-else-if="!hasProgressData"
+      class="text-center text-red-600 text-sm"
+    >
+      Unable to load Golden Ears progress.
+    </div>
+
+    <!-- Main Content -->
+    <div v-else>
       <!-- Week Display -->
-      <div v-if="weekRange" class="week-range">{{ weekRange }}</div>
-      
+      <div v-if="weekRange" class="text-sm -mt-4 mb-6 theme-text-secondary">
+        {{ weekRange }}
+      </div>
+
       <!-- Progress Bar -->
-      <div class="progress-section">
-        <div class="progress-header">
-          <span class="progress-label">Battles: {{ battlesCompleted }}/{{ battlesRequired }}</span>
-          <span class="progress-percentage">{{ progressPercentage }}%</span>
+      <div class="mb-4">
+        <div class="flex justify-between text-sm mb-2 theme-text-secondary">
+          <span>Battles: {{ battlesCompleted }}/{{ battlesRequired }}</span>
+          <span>{{ progressPercentage }}%</span>
         </div>
-        <div class="progress-bar-container">
-          <div class="progress-bar-fill" :style="{ width: `${progressPercentage}%` }"></div>
-        </div>
-      </div>
-      
-      <!-- Stats Cards -->
-      <div class="stats-cards">
-        <div class="stat-card">
-          <div class="stat-number">{{ battlesCompleted }}</div>
-          <div class="stat-label">Battles</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-number">{{ Math.round(accuracy) }}%</div>
-          <div class="stat-label">Accuracy</div>
+        <div class="w-full rounded-full h-2 bg-gray-200">
+          <div
+            class="bg-[#ffd200] h-2 rounded-full transition-all duration-300"
+            :style="{ width: `${progressPercentage}%` }"
+          />
         </div>
       </div>
-      
+
+      <!-- Stats Grid -->
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="border rounded-lg p-3 text-center theme-bg-subcard-soft theme-border-subcard-soft">
+          <div class="font-bold text-lg theme-text-primary">{{ battlesCompleted }}</div>
+          <div class="text-xs theme-text-secondary">Battles</div>
+        </div>
+        <div class="border rounded-lg p-3 text-center theme-bg-subcard-soft theme-border-subcard-soft">
+          <div class="font-bold text-lg theme-text-primary">{{ Math.round(accuracy) }}%</div>
+          <div class="text-xs theme-text-secondary">Accuracy</div>
+        </div>
+      </div>
+
       <!-- Qualification Message -->
-      <div class="qualification-message">
-        <p>{{ qualificationMessage }}</p>
+      <div class="text-center">
+        <p class="text-sm theme-text-secondary">
+          {{ qualificationMessage }}
+        </p>
       </div>
     </div>
   </div>
@@ -77,6 +112,8 @@ const emit = defineEmits<{
 const battlesCompleted = computed(() => props.progressData?.battles_judged || 0)
 const battlesRequired = computed(() => props.progressData?.battles_required || 20)
 const accuracy = computed(() => props.progressData?.accuracy || 0)
+const isQualified = computed(() => props.progressData?.qualified ?? false)
+const hasProgressData = computed(() => !!props.progressData)
 const progressPercentage = computed(() => {
   if (battlesRequired.value === 0) return 0
   return Math.min(100, Math.round((battlesCompleted.value / battlesRequired.value) * 100))
@@ -104,144 +141,3 @@ const qualificationMessage = computed(() => {
   return `${needed} more ${needed === 1 ? 'battle' : 'battles'} needed to qualify`
 })
 </script>
-
-<style scoped>
-.golden-ears-progress-card {
-  border-radius: 0.5rem;
-  padding: 1.5rem;
-  margin-bottom: 1rem;
-  border: 1px solid var(--border-color);
-}
-
-.card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1.5rem;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.header-icon {
-  font-size: 1.5rem;
-  color: #ffd200;
-}
-
-.card-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
-}
-
-.refresh-button {
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  padding: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 0.25rem;
-  transition: all 0.2s;
-}
-
-.refresh-button:hover {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-}
-
-.card-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.week-range {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-.progress-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.progress-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.progress-label {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-.progress-percentage {
-  font-size: 0.875rem;
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-.progress-bar-container {
-  width: 100%;
-  height: 8px;
-  background: var(--bg-tertiary);
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.progress-bar-fill {
-  height: 100%;
-  background: #ffd200;
-  border-radius: 4px;
-  transition: width 0.3s ease;
-}
-
-.stats-cards {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-}
-
-.stat-card {
-  text-align: center;
-  padding: 1rem;
-  background: var(--bg-secondary);
-  border-radius: 0.5rem;
-}
-
-.stat-number {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 0.25rem;
-}
-
-.stat-label {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-}
-
-.qualification-message {
-  padding: 0.75rem;
-  background: var(--bg-secondary);
-  border-radius: 0.5rem;
-  text-align: center;
-}
-
-.qualification-message p {
-  margin: 0;
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-}
-</style>
