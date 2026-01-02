@@ -3,8 +3,8 @@
     <!-- Header -->
     <div class="mb-4 flex items-center justify-between">
       <div class="flex items-center">
-        <ion-icon :icon="checkmarkCircle" class="w-5 h-5 mr-2 text-[#ffd200]" />
-        <h3 class="text-lg font-semibold flex items-center theme-text-primary">
+        <GoldenEarsIcon class="w-6 h-6 mr-2 text-[#ffd200]" />
+        <h3 class="text-xl font-semibold flex items-center theme-text-primary">
           Golden Ears Progress
           <span
             v-if="isQualified"
@@ -20,7 +20,7 @@
         :disabled="isLoading"
         aria-label="Refresh"
       >
-        <ion-icon :icon="refresh" />
+        <ion-icon :icon="refresh" class="w-4 h-4" />
       </button>
     </div>
 
@@ -83,7 +83,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { IonIcon } from '@ionic/vue'
-import { checkmarkCircle, refresh } from 'ionicons/icons'
+import { refresh } from 'ionicons/icons'
+import GoldenEarsIcon from '@/components/icons/GoldenEarsIcon.vue'
 
 interface ProgressData {
   battles_judged?: number

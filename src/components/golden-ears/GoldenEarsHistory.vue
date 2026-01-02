@@ -2,7 +2,7 @@
   <div class="golden-ears-history theme-bg-card theme-border-card">
     <div class="card-header">
       <div class="header-left">
-        <ion-icon :icon="checkmarkCircle" class="header-icon" />
+        <GoldenEarsIcon class="w-6 h-6 header-icon" />
         <h3 class="card-title">{{ title }}</h3>
       </div>
       <button class="refresh-button" @click="$emit('refresh')" aria-label="Refresh">
@@ -56,7 +56,8 @@
 
 <script setup lang="ts">
 import { IonIcon, IonSpinner } from '@ionic/vue'
-import { ear, checkmarkCircle, refresh, trophy } from 'ionicons/icons'
+import { ear, refresh, trophy } from 'ionicons/icons'
+import GoldenEarsIcon from '@/components/icons/GoldenEarsIcon.vue'
 
 interface GoldenEarsAward {
   id: string
@@ -99,7 +100,6 @@ const formatDateRange = (start: string, end: string) => {
 .golden-ears-history {
   border-radius: 0.5rem;
   padding: 1.5rem;
-  margin-bottom: 1rem;
   border: 1px solid var(--border-color);
 }
 
@@ -107,7 +107,6 @@ const formatDateRange = (start: string, end: string) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1.5rem;
 }
 
 .header-left {
@@ -117,7 +116,8 @@ const formatDateRange = (start: string, end: string) => {
 }
 
 .header-icon {
-  font-size: 1.5rem;
+  width: 24px;
+  height: 24px;
   color: #ffd200;
 }
 
@@ -224,7 +224,7 @@ const formatDateRange = (start: string, end: string) => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 3rem 1rem;
+  padding: 1rem 1rem;
   text-align: center;
 }
 
@@ -235,18 +235,18 @@ const formatDateRange = (start: string, end: string) => {
 
 .empty-icon {
   font-size: 4rem;
-  color: var(--text-muted);
-  opacity: 0.5;
+  color: #ffd200;
   margin-bottom: 1rem;
 }
 
 .empty-state h4 {
-  color: var(--text-primary);
+  color: #1f2937;
   margin: 0 0 0.5rem 0;
 }
 
 .empty-state p {
-  color: var(--text-secondary);
+  color: #6b7280;
+  font-size: 14px;
   margin: 0;
 }
 
